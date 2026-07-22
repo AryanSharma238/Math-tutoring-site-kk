@@ -105,7 +105,7 @@ def login_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
         if "user_id" not in session:
-            return redirect(url_for("landing"))
+            return redirect(url_for("login"))
         return f(*args, **kwargs)
     return wrapper
 
@@ -129,10 +129,16 @@ def current_user():
 
 def register_routes(app):
     @app.route("/")
-    def landing():
+    def home():
         if "user_id" in session:
             return redirect(url_for("dashboard"))
-        return render_template("landing.html")
+        return render_template("home.html")
+
+    @app.route("/login")
+    def login():
+        if "user_id" in session:
+            return redirect(url_for("dashboard"))
+        return render_template("login.html")
 
     @app.route("/auth/signup", methods=["POST"])
     def auth_signup():
@@ -142,20 +148,20 @@ def register_routes(app):
 
         if not email or "@" not in email:
             flash("Please enter a valid email.")
-            return redirect(url_for("landing"))
+            return redirect(url_for("login"))
         if len(password) < 8:
             flash("Password must be at least 8 characters.")
-            return redirect(url_for("landing"))
+            return redirect(url_for("login"))
 
         try:
             result = get_supabase().auth.sign_up({"email": email, "password": password})
         except Exception as exc:
             flash(f"Could not create account: {exc}")
-            return redirect(url_for("landing"))
+            return redirect(url_for("login"))
 
         if not result.user:
             flash("Could not create account. Please try again.")
-            return redirect(url_for("landing"))
+            return redirect(url_for("login"))
 
         if not result.session:
             flash(
@@ -163,7 +169,7 @@ def register_routes(app):
                 "(If you're the admin setting this up, you can disable email confirmation "
                 "in Supabase: Authentication -> Providers -> Email.)"
             )
-            return redirect(url_for("landing"))
+            return redirect(url_for("login"))
 
         _log_in_local_user(result.user.id, email, name)
         return redirect(url_for("dashboard"))
@@ -175,7 +181,7 @@ def register_routes(app):
 
         if not email or not password:
             flash("Please enter your email and password.")
-            return redirect(url_for("landing"))
+            return redirect(url_for("login"))
 
         try:
             result = get_supabase().auth.sign_in_with_password(
@@ -183,14 +189,14 @@ def register_routes(app):
             )
         except SupabaseNotConfigured as exc:
             flash(str(exc))
-            return redirect(url_for("landing"))
+            return redirect(url_for("login"))
         except Exception:
             flash("Incorrect email or password.")
-            return redirect(url_for("landing"))
+            return redirect(url_for("login"))
 
         if not result.user:
             flash("Incorrect email or password.")
-            return redirect(url_for("landing"))
+            return redirect(url_for("login"))
 
         _log_in_local_user(result.user.id, email, None)
         return redirect(url_for("dashboard"))
@@ -216,7 +222,7 @@ def register_routes(app):
     @app.route("/logout")
     def logout():
         session.clear()
-        return redirect(url_for("landing"))
+        return redirect(url_for("login"))
 
     @app.route("/dashboard")
     @login_required
@@ -269,7 +275,7 @@ def register_routes(app):
         db.session.delete(user)
         db.session.commit()
         session.clear()
-        return redirect(url_for("landing"))
+        return redirect(url_for("login"))
 
     # --- Admin: manage a specific student ---
 

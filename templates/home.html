@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% block title %}M² Channel · Math Tutoring by Karthikeya Kusuma{% endblock %}
+{% block body %}
+<header class="site-header">
+  <div class="site-header-inner">
+    <a href="#top" class="brand-link">
+      <img src="{{ url_for('static', filename='images/m2-logo.png') }}" alt="M² Channel" class="brand-logo">
+      <span class="brand-name">M<sup>2</sup> Channel</span>
+    </a>
+    <nav class="site-nav">
+      <a href="#about">About</a>
+      <a href="#services">Curricula</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#testimonials">Results</a>
+    </nav>
+    <div class="site-header-actions">
+      <a href="{{ url_for('login') }}" class="nav-signin">Sign In</a>
+      <a href="{{ url_for('login', mode='signup') }}" class="nav-getstarted">Get Started</a>
+    </div>
+  </div>
+</header>
+
+<section id="top" class="hero">
+  <div class="hero-inner">
+    <div class="hero-copy">
+      <div class="hero-badge"><span class="pulse-dot"></span>Now mentoring students across 7+ countries</div>
+      <h1>Math, taught the way it was meant to be, <em>understood.</em></h1>
+      <p class="hero-lead">I'm <strong>Karthikeya Kusuma</strong>, NIT Warangal alum and full time math mentor. For five years I've helped high school students replace rote drills with real intuition, and watched their scores follow.</p>
+      <div class="hero-ctas">
+        <a href="https://forms.gle/5dSMCAtVG1r7w4Vo8" target="_blank" rel="noreferrer" class="btn-primary">Book a free intro call &rarr;</a>
+        <a href="#services" class="btn-outline">See what I teach</a>
+      </div>
+      <p class="hero-quote">"I encourage students to rely on a creativity based approach rather than rote learning, something traditional schools have stopped doing."</p>
+    </div>
+    <div class="hero-photo-wrap">
+      <img src="{{ url_for('static', filename='images/karthikeya.png') }}" alt="Karthikeya Kusuma, math mentor" class="hero-photo">
+      <img src="{{ url_for('static', filename='images/m2-logo.png') }}" alt="" class="hero-logo-badge">
+    </div>
+  </div>
+</section>
+
+<section class="testimonials-marquee-section">
+  <div class="marquee-heading">
+    <div>
+      <p class="eyebrow">Real messages</p>
+      <h2>From parents and students, in their own words.</h2>
+    </div>
+    <p class="marquee-note">Unedited screenshots from WhatsApp conversations.</p>
+  </div>
+  <div class="marquee-row">
+    <div class="marquee-track">
+      {% for i in range(1, 30) %}
+        <div class="marquee-item"><img src="{{ url_for('static', filename='images/testimonials/t' ~ i ~ '.jpg') }}" alt="Parent or student testimonial screenshot" loading="lazy"></div>
+      {% endfor %}
+      {% for i in range(1, 30) %}
+        <div class="marquee-item"><img src="{{ url_for('static', filename='images/testimonials/t' ~ i ~ '.jpg') }}" alt="Parent or student testimonial screenshot" loading="lazy"></div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="stats-bar">
+  <div class="stats-grid">
+    <div><div class="stat-num">40+</div><div class="stat-label">Students mentored 1 on 1</div></div>
+    <div><div class="stat-num">7</div><div class="stat-label">Countries reached</div></div>
+    <div><div class="stat-num">1,500+</div><div class="stat-label">Hours of tutoring</div></div>
+    <div><div class="stat-num">85%</div><div class="stat-label">Avg. score improvement*</div></div>
+  </div>
+  <p class="stats-footnote">*Among students who stayed for 3+ months.</p>
+</section>
+
+<section id="about" class="about-section">
+  <p class="eyebrow">About</p>
+  <h2>Math is my passion, and my craft.</h2>
+  <div class="about-copy">
+    <p>I hold an engineering degree from <strong>NIT Warangal</strong>, one of India's most rigorous institutions. After years of competitive math, I chose to spend my days doing what I love most: guiding high schoolers through the subject that once changed my life.</p>
+    <p>I've taught students from the bustling classrooms of <em>Texas</em>, the sunny coasts of <em>Florida</em>, the rolling hills of <em>West Virginia</em>, the relentless drive of <em>New Jersey</em>, the vibrant cities of <em>Canada</em> and <em>London</em>, and the heart of <em>India</em>.</p>
+    <p>Every lesson is tailored to the student's strengths, their gaps, and the exam they're aiming at. The result isn't just better scores; it's a student who finally <em>likes</em> math.</p>
+  </div>
+</section>
+
+<section id="services" class="curricula-section">
+  <p class="eyebrow">Curricula</p>
+  <h2>Four curricula. One philosophy: understand, then practice.</h2>
+  <div class="curricula-grid">
+    <article class="curriculum-card">
+      <span class="curriculum-tag">USA</span>
+      <h3>US Common Core</h3>
+      <p>Geometry, Algebra I/II, Precalculus, Calculus. Plus PSAT and SAT prep with personalized strategies.</p>
+    </article>
+    <article class="curriculum-card">
+      <span class="curriculum-tag">India</span>
+      <h3>IIT JEE</h3>
+      <p>Mains and Advanced coaching with deep conceptual mastery and time tested problem solving techniques.</p>
+    </article>
+    <article class="curriculum-card">
+      <span class="curriculum-tag">Canada</span>
+      <h3>Grades 9 to 12</h3>
+      <p>Full Canadian curriculum support including AP and IB programs, from foundations to exam day.</p>
+    </article>
+    <article class="curriculum-card">
+      <span class="curriculum-tag">UK</span>
+      <h3>GCSE</h3>
+      <p>Comprehensive K to 12 GCSE tutoring. Building the foundation that makes everything after it easier.</p>
+    </article>
+  </div>
+</section>
+
+<section id="pricing" class="pricing-section">
+  <p class="eyebrow">Pricing</p>
+  <h2>Honest, regional pricing. No packages, no pressure.</h2>
+  <div class="pricing-grid">
+    <div class="pricing-card">
+      <div class="pricing-region">London</div>
+      <div class="pricing-tier">Year 9 to Year 11</div>
+      <div class="pricing-amount">£17.5 to £20</div>
+      <div class="pricing-unit">per 60-min class</div>
+      <div class="pricing-inr">&asymp; &#8377;2,236 to &#8377;2,555</div>
+      <a href="https://forms.gle/5dSMCAtVG1r7w4Vo8" target="_blank" rel="noreferrer" class="btn-outline pricing-btn">Book now</a>
+    </div>
+    <div class="pricing-card featured">
+      <span class="pricing-badge">Most booked</span>
+      <div class="pricing-region">Canada</div>
+      <div class="pricing-tier">Grade 10 to Grade 12</div>
+      <div class="pricing-amount">$22.5 to $25</div>
+      <div class="pricing-unit">USD per 60-min class</div>
+      <div class="pricing-inr">&asymp; &#8377;2,144 to &#8377;2,383</div>
+      <a href="https://forms.gle/5dSMCAtVG1r7w4Vo8" target="_blank" rel="noreferrer" class="btn-primary pricing-btn">Book now</a>
+    </div>
+    <div class="pricing-card">
+      <div class="pricing-region">USA</div>
+      <div class="pricing-tier">High School</div>
+      <div class="pricing-amount">$24.5 to $30.99</div>
+      <div class="pricing-unit">per 60-min class</div>
+      <div class="pricing-inr">&asymp; &#8377;2,335 to &#8377;2,953</div>
+      <a href="https://forms.gle/5dSMCAtVG1r7w4Vo8" target="_blank" rel="noreferrer" class="btn-outline pricing-btn">Book now</a>
+    </div>
+  </div>
+</section>
+
+<section id="testimonials" class="quotes-section">
+  <p class="eyebrow">Results</p>
+  <h2>40+ families. One consistent verdict.</h2>
+  <div class="quotes-grid">
+    <figure class="quote-card">
+      <div class="quote-mark">&ldquo;</div>
+      <blockquote>My daughter went from dreading calculus to asking for extra problems. Karthikeya doesn't just teach, he gets kids to think.</blockquote>
+      <figcaption>Parent, New Jersey</figcaption>
+    </figure>
+    <figure class="quote-card">
+      <div class="quote-mark">&ldquo;</div>
+      <blockquote>I jumped from 580 to 760 on SAT math in four months. He made everything click.</blockquote>
+      <figcaption>Student, Texas</figcaption>
+    </figure>
+    <figure class="quote-card">
+      <div class="quote-mark">&ldquo;</div>
+      <blockquote>We tried three tutors before M&sup2;. Karthikeya was the only one who actually adapted to how my son learns.</blockquote>
+      <figcaption>Parent, London</figcaption>
+    </figure>
+    <figure class="quote-card">
+      <div class="quote-mark">&ldquo;</div>
+      <blockquote>JEE Advanced felt impossible until I started his sessions. His problem solving frameworks are unreal.</blockquote>
+      <figcaption>Student, Hyderabad</figcaption>
+    </figure>
+  </div>
+  <p class="quotes-disclaimer">Quotes paraphrased from parent and student feedback shared with the tutor. Identifying details withheld for privacy.</p>
+</section>
+
+<section class="cta-section">
+  <div class="cta-card">
+    <h2>Ready to see math <em>click</em>?</h2>
+    <p>The intro call is free. We'll talk about your student, their goals, and whether we're a fit. No hard sell.</p>
+    <a href="https://forms.gle/5dSMCAtVG1r7w4Vo8" target="_blank" rel="noreferrer" class="btn-primary">Book my free call &rarr;</a>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <img src="{{ url_for('static', filename='images/m2-logo.png') }}" alt="" class="footer-logo">
+      <span>M<sup>2</sup> Channel</span> &middot; Karthikeya Kusuma
+    </div>
+    <div class="footer-links">
+      <a href="#about">About</a>
+      <a href="#pricing">Pricing</a>
+      <a href="https://forms.gle/5dSMCAtVG1r7w4Vo8" target="_blank" rel="noreferrer">Book</a>
+    </div>
+  </div>
+</footer>
+{% endblock %}
