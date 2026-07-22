@@ -32,9 +32,11 @@ until real authentication (e.g. magic links or OAuth) is added.
 ## Tech stack
 
 - Flask + Flask-SQLAlchemy
-- Postgres in production (Render), SQLite for local dev if `DATABASE_URL` is unset
+- Postgres in production, hosted for free on **Supabase** (Render's free
+  Postgres auto-expires after 30 days -- Supabase's free tier doesn't).
+  SQLite is used for local dev if `DATABASE_URL` is unset.
 - Curriculum files are stored as binary blobs directly in the database
-  (no separate file storage needed, works on Render's free tier)
+  (no separate file storage needed)
 - Quiz generation calls OpenRouter server-side using a free model
 
 ## Environment variables
@@ -42,22 +44,31 @@ until real authentication (e.g. magic links or OAuth) is added.
 | Variable | Required | Purpose |
 |---|---|---|
 | `SECRET_KEY` | Yes | Flask session signing key -- set to a long random string |
-| `DATABASE_URL` | Yes (prod) | Postgres connection string. Render provides this automatically if you attach a Render Postgres database |
+| `DATABASE_URL` | Yes (prod) | Postgres connection string from Supabase (see step 2 below) |
 | `ADMIN_EMAIL` | Yes | The email address that becomes admin on first sign-in. Everyone else who signs in becomes a student |
 | `OPENROUTER_API_KEY` | Yes, for quizzes | Free key from [openrouter.ai/keys](https://openrouter.ai/keys), used server-side to generate quizzes |
 
-## Deploying to Render (full steps)
+## Deploying (Supabase database + Render web service)
 
 1. **Push this repo to GitHub** (already done if you're reading this on GitHub).
 
-2. **Create a Postgres database on Render:**
-   - Go to [dashboard.render.com](https://dashboard.render.com) -> **New** -> **PostgreSQL**
-   - Give it a name (e.g. `mathtutor-db`), choose the **Free** instance type
-   - Click **Create Database** and wait for it to become available
-   - Once created, copy the **Internal Database URL** (you'll use this in step 4)
+2. **Create a free Postgres database on Supabase:**
+   - Go to [supabase.com](https://supabase.com) -> sign in -> **New project**
+   - Pick an organization, name the project (e.g. `mathtutor`), set a
+     database password (save it somewhere), pick a region close to you,
+     and choose the **Free** plan
+   - Wait for the project to finish provisioning (~2 minutes)
+   - Go to **Project Settings** (gear icon) -> **Database**
+   - Under **Connection string**, select the **URI** tab and choose
+     **Session pooler** (recommended for long-running servers like Render's
+     free web service) -- copy that URI
+   - It looks like:
+     `postgresql://postgres.xxxxxxxx:[YOUR-PASSWORD]@aws-0-<region>.pooler.supabase.com:5432/postgres`
+   - Replace `[YOUR-PASSWORD]` with the database password you set above --
+     this full string is your `DATABASE_URL`
 
 3. **Create a Web Service on Render:**
-   - **New** -> **Web Service**
+   - Go to [dashboard.render.com](https://dashboard.render.com) -> **New** -> **Web Service**
    - Connect your GitHub account and select the `Math-tutoring-site-kk` repo
    - **Runtime**: Python 3
    - **Build Command**: `pip install -r requirements.txt`
@@ -66,12 +77,13 @@ until real authentication (e.g. magic links or OAuth) is added.
 
 4. **Set environment variables** on the Web Service (Render dashboard -> your service -> Environment):
    - `SECRET_KEY` -- generate one, e.g. run `python3 -c "import secrets; print(secrets.token_hex(32))"` locally and paste the result
-   - `DATABASE_URL` -- paste the Internal Database URL from step 2
+   - `DATABASE_URL` -- the Supabase connection string from step 2
    - `ADMIN_EMAIL` -- the email you (the teacher) will sign in with
    - `OPENROUTER_API_KEY` -- your free key from [openrouter.ai/keys](https://openrouter.ai/keys)
 
 5. **Deploy.** Render will build and start the app. The first request creates
-   all database tables automatically (`db.create_all()` runs at startup).
+   all database tables automatically (`db.create_all()` runs at startup) --
+   you'll see the tables appear under Supabase's **Table Editor** afterward.
 
 6. **Sign in as admin**: visit your Render URL and sign in with the email you
    set as `ADMIN_EMAIL`. You'll land on the admin dashboard.
