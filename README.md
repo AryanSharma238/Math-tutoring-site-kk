@@ -2,7 +2,8 @@
 
 A simple tutoring portal with an admin (teacher) and student roles.
 
-- Sign in with just an email (no password yet -- see "Security note" below).
+- Real email + password sign-in, handled by **Supabase Auth** -- passwords
+  are never touched by our own code; Supabase stores and verifies them.
 - Admin sees every student who has signed in, in the sidebar, and can:
   - Set a student's course name, total number of classes, and timezone
   - Upload their curriculum (PDF, JPG, JPEG, or PNG)
@@ -24,14 +25,19 @@ A simple tutoring portal with an admin (teacher) and student roles.
 
 ## Security note
 
-This is a "just get something working" auth system: typing any email logs
-you in as that email (creating the account if it doesn't exist yet). There
-is no password or email verification. Don't put real student data in here
-until real authentication (e.g. magic links or OAuth) is added.
+Account deletion (Settings tab) only removes the student's row from our own
+database -- it does not delete their Supabase Auth login. Fully deleting the
+Supabase-side account requires the Supabase Admin API (a service-role key),
+which isn't wired up yet. Fine for a small trusted class; flag if you need
+full deletion later.
 
 ## Tech stack
 
 - Flask + Flask-SQLAlchemy
+- **Supabase Auth** for real email/password sign-in and sign-up (passwords
+  are hashed and verified entirely by Supabase -- our own database only
+  stores a `supabase_uid` to link a Supabase user to their course/profile
+  data)
 - Postgres in production, hosted for free on **Supabase** (Render's free
   Postgres auto-expires after 30 days -- Supabase's free tier doesn't).
   SQLite is used for local dev if `DATABASE_URL` is unset.
@@ -45,19 +51,23 @@ until real authentication (e.g. magic links or OAuth) is added.
 |---|---|---|
 | `SECRET_KEY` | Yes | Flask session signing key -- set to a long random string |
 | `DATABASE_URL` | Yes (prod) | Postgres connection string from Supabase (see step 2 below) |
-| `ADMIN_EMAIL` | Yes | The email address that becomes admin on first sign-in. Everyone else who signs in becomes a student |
+| `SUPABASE_URL` | Yes | Your Supabase project URL, e.g. `https://xxxx.supabase.co` |
+| `SUPABASE_ANON_KEY` | Yes | Your Supabase project's `anon` public API key |
+| `ADMIN_EMAIL` | Yes | The email address that becomes admin on first sign-up. Everyone else who signs up becomes a student |
 | `OPENROUTER_API_KEY` | Yes, for quizzes | Free key from [openrouter.ai/keys](https://openrouter.ai/keys), used server-side to generate quizzes |
 
-## Deploying (Supabase database + Render web service)
+## Deploying (Supabase auth + database, Render web service)
 
 1. **Push this repo to GitHub** (already done if you're reading this on GitHub).
 
-2. **Create a free Postgres database on Supabase:**
+2. **Create a free Supabase project:**
    - Go to [supabase.com](https://supabase.com) -> sign in -> **New project**
    - Pick an organization, name the project (e.g. `mathtutor`), set a
      database password (save it somewhere), pick a region close to you,
      and choose the **Free** plan
    - Wait for the project to finish provisioning (~2 minutes)
+
+3. **Get your database connection string:**
    - Go to **Project Settings** (gear icon) -> **Database**
    - Under **Connection string**, select the **URI** tab and choose
      **Session pooler** (recommended for long-running servers like Render's
@@ -67,7 +77,21 @@ until real authentication (e.g. magic links or OAuth) is added.
    - Replace `[YOUR-PASSWORD]` with the database password you set above --
      this full string is your `DATABASE_URL`
 
-3. **Create a Web Service on Render:**
+4. **Get your Supabase API keys:**
+   - Go to **Project Settings** -> **API**
+   - Copy the **Project URL** -> this is `SUPABASE_URL`
+   - Copy the **anon / public** key -> this is `SUPABASE_ANON_KEY`
+     (safe to use here -- it's the key meant for this kind of use, not the
+     `service_role` secret key, which you should never use in this app)
+
+5. **(Recommended for a small class) Turn off email confirmation:**
+   - Go to **Authentication** -> **Providers** -> **Email**
+   - Turn off **Confirm email**
+   - Without this, new accounts must click a confirmation link emailed by
+     Supabase before they can sign in -- fine if you want that extra step,
+     but turning it off means signup logs someone in immediately
+
+6. **Create a Web Service on Render:**
    - Go to [dashboard.render.com](https://dashboard.render.com) -> **New** -> **Web Service**
    - Connect your GitHub account and select the `Math-tutoring-site-kk` repo
    - **Runtime**: Python 3
@@ -75,23 +99,26 @@ until real authentication (e.g. magic links or OAuth) is added.
    - **Start Command**: `gunicorn app:app`
    - **Instance Type**: Free
 
-4. **Set environment variables** on the Web Service (Render dashboard -> your service -> Environment):
+7. **Set environment variables** on the Web Service (Render dashboard -> your service -> Environment):
    - `SECRET_KEY` -- generate one, e.g. run `python3 -c "import secrets; print(secrets.token_hex(32))"` locally and paste the result
-   - `DATABASE_URL` -- the Supabase connection string from step 2
-   - `ADMIN_EMAIL` -- the email you (the teacher) will sign in with
+   - `DATABASE_URL` -- the Supabase connection string from step 3
+   - `SUPABASE_URL` -- from step 4
+   - `SUPABASE_ANON_KEY` -- from step 4
+   - `ADMIN_EMAIL` -- the email you (the teacher) will sign up with
    - `OPENROUTER_API_KEY` -- your free key from [openrouter.ai/keys](https://openrouter.ai/keys)
 
-5. **Deploy.** Render will build and start the app. The first request creates
+8. **Deploy.** Render will build and start the app. The first request creates
    all database tables automatically (`db.create_all()` runs at startup) --
    you'll see the tables appear under Supabase's **Table Editor** afterward.
 
-6. **Sign in as admin**: visit your Render URL and sign in with the email you
-   set as `ADMIN_EMAIL`. You'll land on the admin dashboard.
+9. **Sign up as admin**: visit your Render URL, click "Get started", and
+   create an account with the email you set as `ADMIN_EMAIL`. You'll land on
+   the admin dashboard.
 
-7. **Students sign in** with their own email at the same URL. They'll see the
-   "waiting for setup" screen until you (the admin) open their profile from
-   the sidebar and fill in their course, class count, timezone, curriculum,
-   and schedule.
+10. **Students sign up** with their own email/password at the same URL.
+    They'll see the "waiting for setup" screen until you (the admin) open
+    their profile from the sidebar and fill in their course, class count,
+    timezone, curriculum, and schedule.
 
 ## Running locally
 
@@ -99,7 +126,9 @@ until real authentication (e.g. magic links or OAuth) is added.
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-ADMIN_EMAIL=you@example.com SECRET_KEY=dev python3 app.py
+ADMIN_EMAIL=you@example.com SECRET_KEY=dev \
+  SUPABASE_URL=https://xxxx.supabase.co SUPABASE_ANON_KEY=your-anon-key \
+  python3 app.py
 ```
 
 Without `DATABASE_URL` set, it falls back to a local `local.db` SQLite file.

@@ -4,16 +4,51 @@
 <main class="landing">
   <div class="landing-card">
     <h1>🎓 Math Tutoring Portal</h1>
-    <p class="subtitle">Sign in with your email to get started.</p>
-    <form method="POST" action="{{ url_for('auth') }}" class="landing-form">
-      <label for="name">Name (first time only)</label>
-      <input type="text" id="name" name="name" placeholder="Jane Doe">
+    <p class="subtitle" id="modeSubtitle">Sign in to your account.</p>
 
-      <label for="email">Email</label>
-      <input type="email" id="email" name="email" placeholder="you@example.com" required>
+    <form method="POST" action="{{ url_for('auth_login') }}" class="landing-form" id="loginForm">
+      <label for="loginEmail">Email</label>
+      <input type="email" id="loginEmail" name="email" placeholder="you@example.com" required>
 
-      <button type="submit">Sign In / Get Started</button>
+      <label for="loginPassword">Password</label>
+      <input type="password" id="loginPassword" name="password" required>
+
+      <button type="submit">Sign In</button>
     </form>
+
+    <form method="POST" action="{{ url_for('auth_signup') }}" class="landing-form" id="signupForm" hidden>
+      <label for="signupName">Name</label>
+      <input type="text" id="signupName" name="name" placeholder="Jane Doe">
+
+      <label for="signupEmail">Email</label>
+      <input type="email" id="signupEmail" name="email" placeholder="you@example.com" required>
+
+      <label for="signupPassword">Password</label>
+      <input type="password" id="signupPassword" name="password" placeholder="At least 8 characters" minlength="8" required>
+
+      <button type="submit">Create Account</button>
+    </form>
+
+    <p class="switch-mode">
+      <a href="#" id="toggleMode">Get started</a>
+    </p>
   </div>
 </main>
+{% endblock %}
+{% block scripts %}
+<script>
+  const loginForm = document.getElementById("loginForm");
+  const signupForm = document.getElementById("signupForm");
+  const toggle = document.getElementById("toggleMode");
+  const subtitle = document.getElementById("modeSubtitle");
+
+  toggle.addEventListener("click", (e) => {
+    e.preventDefault();
+    const showingLogin = !loginForm.hidden;
+    loginForm.hidden = showingLogin;
+    signupForm.hidden = !showingLogin;
+    toggle.textContent = showingLogin ? "Already have an account? Sign in" : "Get started";
+    subtitle.textContent = showingLogin ? "Create your account." : "Sign in to your account.";
+  });
+</script>
 {% endblock %}

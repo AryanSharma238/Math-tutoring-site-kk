@@ -9,8 +9,28 @@ from flask import (
     send_file, session, url_for,
 )
 from io import BytesIO
+from supabase import create_client
 
 from models import ClassSession, CurriculumFile, Quiz, StudentProfile, User, db
+
+class SupabaseNotConfigured(Exception):
+    pass
+
+
+_supabase_client = None
+
+
+def get_supabase():
+    global _supabase_client
+    if _supabase_client is None:
+        url = os.environ.get("SUPABASE_URL")
+        key = os.environ.get("SUPABASE_ANON_KEY")
+        if not url or not key:
+            raise SupabaseNotConfigured(
+                "SUPABASE_URL / SUPABASE_ANON_KEY are not set on the server."
+            )
+        _supabase_client = create_client(url, key)
+    return _supabase_client
 
 COMMON_TIMEZONES = [
     "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles",
@@ -106,19 +126,76 @@ def register_routes(app):
             return redirect(url_for("dashboard"))
         return render_template("landing.html")
 
-    @app.route("/auth", methods=["POST"])
-    def auth():
+    @app.route("/auth/signup", methods=["POST"])
+    def auth_signup():
         email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
         name = request.form.get("name", "").strip()
+
         if not email or "@" not in email:
             flash("Please enter a valid email.")
             return redirect(url_for("landing"))
+        if len(password) < 8:
+            flash("Password must be at least 8 characters.")
+            return redirect(url_for("landing"))
 
-        user = User.query.filter_by(email=email).first()
+        try:
+            result = get_supabase().auth.sign_up({"email": email, "password": password})
+        except Exception as exc:
+            flash(f"Could not create account: {exc}")
+            return redirect(url_for("landing"))
+
+        if not result.user:
+            flash("Could not create account. Please try again.")
+            return redirect(url_for("landing"))
+
+        if not result.session:
+            flash(
+                "Account created! Check your email to confirm it, then sign in. "
+                "(If you're the admin setting this up, you can disable email confirmation "
+                "in Supabase: Authentication -> Providers -> Email.)"
+            )
+            return redirect(url_for("landing"))
+
+        _log_in_local_user(result.user.id, email, name)
+        return redirect(url_for("dashboard"))
+
+    @app.route("/auth/login", methods=["POST"])
+    def auth_login():
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
+
+        if not email or not password:
+            flash("Please enter your email and password.")
+            return redirect(url_for("landing"))
+
+        try:
+            result = get_supabase().auth.sign_in_with_password(
+                {"email": email, "password": password}
+            )
+        except SupabaseNotConfigured as exc:
+            flash(str(exc))
+            return redirect(url_for("landing"))
+        except Exception:
+            flash("Incorrect email or password.")
+            return redirect(url_for("landing"))
+
+        if not result.user:
+            flash("Incorrect email or password.")
+            return redirect(url_for("landing"))
+
+        _log_in_local_user(result.user.id, email, None)
+        return redirect(url_for("dashboard"))
+
+    def _log_in_local_user(supabase_uid, email, name):
+        user = User.query.filter_by(supabase_uid=supabase_uid).first()
         if not user:
             admin_email = os.environ.get("ADMIN_EMAIL", "").strip().lower()
             is_admin = bool(admin_email) and email == admin_email
-            user = User(email=email, name=name or None, is_admin=is_admin)
+            user = User(
+                supabase_uid=supabase_uid, email=email, name=name or None,
+                is_admin=is_admin,
+            )
             db.session.add(user)
             db.session.commit()
             if not is_admin:
@@ -127,7 +204,6 @@ def register_routes(app):
                 db.session.commit()
 
         session["user_id"] = user.id
-        return redirect(url_for("dashboard"))
 
     @app.route("/logout")
     def logout():

@@ -91,6 +91,17 @@ a { color: var(--accent); }
   font-weight: 600;
 }
 
+.hint {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin: 0;
+}
+
+.switch-mode {
+  margin-top: 1rem;
+  font-size: 0.85rem;
+}
+
 input, select, textarea, button {
   font-family: inherit;
   font-size: 0.95rem;
