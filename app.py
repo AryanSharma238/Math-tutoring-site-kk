@@ -2,6 +2,7 @@ import json
 import os
 from datetime import datetime, timezone as dt_timezone
 from functools import wraps
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import requests
 from flask import (
@@ -12,6 +13,13 @@ from io import BytesIO
 from supabase import create_client
 
 from models import ClassSession, CurriculumFile, Quiz, StudentProfile, User, db
+
+
+def _ensure_sslmode(db_url):
+    parts = urlsplit(db_url)
+    query = dict(parse_qsl(parts.query))
+    query.setdefault("sslmode", "require")
+    return urlunsplit(parts._replace(query=urlencode(query)))
 
 class SupabaseNotConfigured(Exception):
     pass
@@ -79,8 +87,8 @@ def create_app():
     db_url = os.environ.get("DATABASE_URL", "sqlite:///local.db")
     if db_url.startswith("postgres://"):
         db_url = db_url.replace("postgres://", "postgresql://", 1)
-    if db_url.startswith("postgresql://") and "sslmode=" not in db_url:
-        db_url += ("&" if "?" in db_url else "?") + "sslmode=require"
+    if db_url.startswith("postgresql://"):
+        db_url = _ensure_sslmode(db_url)
     app.config["SQLALCHEMY_DATABASE_URI"] = db_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 

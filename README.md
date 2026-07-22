@@ -55,6 +55,7 @@ full deletion later.
 | `SUPABASE_ANON_KEY` | Yes | Your Supabase project's `anon` public API key |
 | `ADMIN_EMAIL` | Yes | The email address that becomes admin on first sign-up. Everyone else who signs up becomes a student |
 | `OPENROUTER_API_KEY` | Yes, for quizzes | Free key from [openrouter.ai/keys](https://openrouter.ai/keys), used server-side to generate quizzes |
+| `PYTHON_VERSION` | Yes, on Render | Set to `3.12.7` -- avoids a build failure where `psycopg2-binary`'s prebuilt wheel doesn't yet support Render's newer default Python |
 
 ## Deploying (Supabase auth + database, Render web service)
 
@@ -65,6 +66,12 @@ full deletion later.
    - Pick an organization, name the project (e.g. `mathtutor`), set a
      database password (save it somewhere), pick a region close to you,
      and choose the **Free** plan
+   - **Important**: use only letters and numbers in the database password
+     (avoid `@ / ? # & %` etc.). Those characters have special meaning inside
+     a connection-string URL and will break the connection if they aren't
+     percent-encoded. If you already have a password with special characters,
+     go to **Project Settings** -> **Database** -> **Reset database password**
+     and generate a new one (Supabase's generator is alphanumeric-safe)
    - Wait for the project to finish provisioning (~2 minutes)
 
 3. **Get your database connection string:**
@@ -98,8 +105,13 @@ full deletion later.
    - **Build Command**: `pip install -r requirements.txt`
    - **Start Command**: `gunicorn app:app`
    - **Instance Type**: Free
+   - Render's default Python version can be too new for `psycopg2-binary`'s
+     prebuilt wheels. Add an environment variable `PYTHON_VERSION` set to
+     `3.12.7` (see step 7) -- this repo's `runtime.txt` is a fallback but
+     Render's current build system reads the env var, not that file
 
 7. **Set environment variables** on the Web Service (Render dashboard -> your service -> Environment):
+   - `PYTHON_VERSION` -- `3.12.7`
    - `SECRET_KEY` -- generate one, e.g. run `python3 -c "import secrets; print(secrets.token_hex(32))"` locally and paste the result
    - `DATABASE_URL` -- the Supabase connection string from step 3
    - `SUPABASE_URL` -- from step 4
