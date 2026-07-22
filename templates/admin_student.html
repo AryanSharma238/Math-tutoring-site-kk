@@ -12,6 +12,9 @@
     <section class="card">
       <h3>Profile</h3>
       <form method="POST" action="{{ url_for('admin_student_update', user_id=student.id) }}" class="form-grid">
+        <label>Student name
+          <input type="text" name="student_name" value="{{ student.name or '' }}" placeholder="Jane Doe">
+        </label>
         <label>Course
           <input type="text" name="course_name" value="{{ profile.course_name or '' }}" placeholder="Algebra 2">
         </label>
@@ -72,7 +75,7 @@
 
     <section class="card">
       <h3>Assign a quiz</h3>
-      <form method="POST" action="{{ url_for('admin_student_generate_quiz', user_id=student.id) }}" class="form-grid">
+      <form id="quizGenerateForm" class="form-grid">
         <label>Topic / instructions
           <textarea name="topic" rows="3" placeholder="e.g. 10-question quiz on quadratic formula, mixed difficulty"></textarea>
         </label>
@@ -84,18 +87,114 @@
             {% for m in models %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
           </select>
         </label>
-        <button type="submit">Generate & assign quiz</button>
+        <button type="submit" id="generateQuizBtn">Generate quiz</button>
       </form>
+      <p class="quiz-status" id="quizStatus"></p>
+
+      <div id="quizPreviewWrap" hidden>
+        <h4>Review before sending</h4>
+        <p class="muted small">Check the questions below. Nothing is sent to the student until you click "Send to student".</p>
+        <div id="quizPreview"></div>
+        <button type="button" id="sendQuizBtn">Send to student</button>
+        <button type="button" id="discardQuizBtn" class="secondary-btn">Discard</button>
+      </div>
 
       {% if profile.quizzes %}
         <h4>Assigned quizzes</h4>
-        <ul class="file-list">
+        <ul class="file-list" id="assignedQuizList">
           {% for q in profile.quizzes %}
             <li>{{ q.title }} <span class="muted small">{{ q.created_at.strftime('%Y-%m-%d %H:%M') }} UTC</span></li>
           {% endfor %}
         </ul>
+      {% else %}
+        <ul class="file-list" id="assignedQuizList"></ul>
       {% endif %}
     </section>
   </main>
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+  const quizForm = document.getElementById("quizGenerateForm");
+  const generateBtn = document.getElementById("generateQuizBtn");
+  const statusEl = document.getElementById("quizStatus");
+  const previewWrap = document.getElementById("quizPreviewWrap");
+  const previewEl = document.getElementById("quizPreview");
+  const sendBtn = document.getElementById("sendQuizBtn");
+  const discardBtn = document.getElementById("discardQuizBtn");
+
+  let pendingQuiz = null;
+
+  quizForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    generateBtn.disabled = true;
+    statusEl.textContent = "Loading... generating quiz, this can take up to a minute.";
+    previewWrap.hidden = true;
+
+    const formData = new FormData(quizForm);
+    try {
+      const resp = await fetch("{{ url_for('admin_student_quiz_preview', user_id=student.id) }}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topic: formData.get("topic"),
+          count: formData.get("count"),
+          model: formData.get("model"),
+        }),
+      });
+      const data = await resp.json();
+      if (!resp.ok || data.error) {
+        statusEl.textContent = data.error || "Quiz generation failed.";
+        return;
+      }
+
+      pendingQuiz = data;
+      statusEl.textContent = `Generated ${data.questions.length} question(s). Review below.`;
+      renderQuizQuestions(data.questions, previewEl);
+      previewWrap.hidden = false;
+    } catch (err) {
+      statusEl.textContent = `Error: ${err.message}`;
+    } finally {
+      generateBtn.disabled = false;
+    }
+  });
+
+  sendBtn.addEventListener("click", async () => {
+    if (!pendingQuiz) return;
+    sendBtn.disabled = true;
+    statusEl.textContent = "Sending to student...";
+
+    try {
+      const resp = await fetch("{{ url_for('admin_student_quiz_assign', user_id=student.id) }}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(pendingQuiz),
+      });
+      const data = await resp.json();
+      if (!resp.ok || data.error) {
+        statusEl.textContent = data.error || "Could not assign quiz.";
+        return;
+      }
+
+      statusEl.textContent = `Sent "${data.title}" to the student.`;
+      previewWrap.hidden = true;
+      pendingQuiz = null;
+
+      const list = document.getElementById("assignedQuizList");
+      const li = document.createElement("li");
+      li.textContent = data.title;
+      list.appendChild(li);
+    } catch (err) {
+      statusEl.textContent = `Error: ${err.message}`;
+    } finally {
+      sendBtn.disabled = false;
+    }
+  });
+
+  discardBtn.addEventListener("click", () => {
+    pendingQuiz = null;
+    previewWrap.hidden = true;
+    statusEl.textContent = "Discarded.";
+  });
+</script>
 {% endblock %}

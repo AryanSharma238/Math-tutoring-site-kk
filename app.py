@@ -292,6 +292,7 @@ def register_routes(app):
         student = User.query.filter_by(id=user_id, is_admin=False).first_or_404()
         profile = student.profile
 
+        student.name = request.form.get("student_name", "").strip() or None
         profile.course_name = request.form.get("course_name", "").strip() or None
         try:
             profile.total_classes = max(int(request.form.get("total_classes", 0)), 0)
@@ -362,22 +363,22 @@ def register_routes(app):
         db.session.commit()
         return redirect(url_for("admin_student", user_id=user_id))
 
-    @app.route("/admin/student/<int:user_id>/quiz/generate", methods=["POST"])
+    @app.route("/admin/student/<int:user_id>/quiz/preview", methods=["POST"])
     @login_required
     @admin_required
-    def admin_student_generate_quiz(user_id):
-        student = User.query.filter_by(id=user_id, is_admin=False).first_or_404()
-        topic = request.form.get("topic", "").strip()
-        model = request.form.get("model") or FREE_MODELS[0]
+    def admin_student_quiz_preview(user_id):
+        User.query.filter_by(id=user_id, is_admin=False).first_or_404()
+        data = request.get_json(silent=True) or {}
+        topic = (data.get("topic") or "").strip()
+        model = data.get("model") or FREE_MODELS[0]
         try:
-            count = max(min(int(request.form.get("count", 5)), 25), 1)
-        except ValueError:
+            count = max(min(int(data.get("count", 5)), 25), 1)
+        except (ValueError, TypeError):
             count = 5
 
         api_key = os.environ.get("OPENROUTER_API_KEY")
         if not api_key:
-            flash("Server is missing OPENROUTER_API_KEY -- ask the admin to set it in Render.")
-            return redirect(url_for("admin_student", user_id=user_id))
+            return {"error": "Server is missing OPENROUTER_API_KEY -- ask the admin to set it in Render."}, 400
 
         try:
             resp = requests.post(
@@ -393,7 +394,7 @@ def register_routes(app):
                         {"role": "user", "content": topic or "general math problems, mixed topics"},
                     ],
                 },
-                timeout=60,
+                timeout=110,
             )
             resp.raise_for_status()
             raw = resp.json()["choices"][0]["message"]["content"]
@@ -405,19 +406,33 @@ def register_routes(app):
             start, end = cleaned.find("["), cleaned.rfind("]")
             questions = json.loads(cleaned[start:end + 1])
         except Exception as exc:
-            flash(f"Quiz generation failed: {exc}")
-            return redirect(url_for("admin_student", user_id=user_id))
+            return {"error": f"Quiz generation failed: {exc}"}, 502
+
+        title = topic[:100] if topic else "Untitled quiz"
+        return {"title": title, "model": model, "questions": questions}
+
+    @app.route("/admin/student/<int:user_id>/quiz/assign", methods=["POST"])
+    @login_required
+    @admin_required
+    def admin_student_quiz_assign(user_id):
+        student = User.query.filter_by(id=user_id, is_admin=False).first_or_404()
+        data = request.get_json(silent=True) or {}
+        title = (data.get("title") or "Untitled quiz")[:100]
+        model = data.get("model") or FREE_MODELS[0]
+        questions = data.get("questions")
+
+        if not isinstance(questions, list) or not questions:
+            return {"error": "No questions to assign."}, 400
 
         quiz = Quiz(
             profile_id=student.profile.id,
-            title=topic[:100] if topic else "Untitled quiz",
+            title=title,
             questions_json=json.dumps(questions),
             model_used=model,
         )
         db.session.add(quiz)
         db.session.commit()
-        flash(f"Quiz generated with {len(questions)} question(s).")
-        return redirect(url_for("admin_student", user_id=user_id))
+        return {"ok": True, "quiz_id": quiz.id, "title": quiz.title}
 
     # --- Curriculum file serving ---
 

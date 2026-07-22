@@ -365,6 +365,28 @@ img.curriculum-viewer {
   background: var(--danger);
 }
 
+.secondary-btn {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  margin-left: 0.5rem;
+}
+
+.quiz-status {
+  min-height: 1.2em;
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin: 0.5rem 0;
+}
+
+#quizPreviewWrap {
+  margin-top: 1rem;
+}
+
+#sendQuizBtn {
+  margin-top: 1rem;
+}
+
 .theme-toggle {
   display: flex;
   gap: 0.6rem;

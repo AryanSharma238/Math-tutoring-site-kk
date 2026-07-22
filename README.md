@@ -103,7 +103,10 @@ full deletion later.
    - Connect your GitHub account and select the `Math-tutoring-site-kk` repo
    - **Runtime**: Python 3
    - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `gunicorn app:app`
+   - **Start Command**: `gunicorn app:app --timeout 120` (this repo's
+     `Procfile` already sets this -- the longer timeout matters because free
+     OpenRouter models can take a while to generate a quiz, and gunicorn's
+     default 30-second timeout would otherwise kill the request mid-generation)
    - **Instance Type**: Free
    - Render's default Python version can be too new for `psycopg2-binary`'s
      prebuilt wheels. Add an environment variable `PYTHON_VERSION` set to
