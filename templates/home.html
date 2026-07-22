@@ -1,11 +1,13 @@
 {% extends "base.html" %}
 {% block title %}M² Channel · Math Tutoring by Karthikeya Kusuma{% endblock %}
 {% block body %}
+<div class="mkt-scope">
+<div class="mkt-bg-gradient" aria-hidden="true"></div>
 <header class="site-header">
   <div class="site-header-inner">
     <a href="#top" class="brand-link">
       <img src="{{ url_for('static', filename='images/m2-logo.png') }}" alt="M² Channel" class="brand-logo">
-      <span class="brand-name">M<sup>2</sup> Channel</span>
+      <span class="brand-name font-display">M<sup>2</sup> Channel</span>
     </a>
     <nav class="site-nav">
       <a href="#about">About</a>
@@ -24,7 +26,7 @@
   <div class="hero-inner">
     <div class="hero-copy">
       <div class="hero-badge"><span class="pulse-dot"></span>Now mentoring students across 7+ countries</div>
-      <h1>Math, taught the way it was meant to be, <em>understood.</em></h1>
+      <h1 class="font-display">Math, taught the way it was meant to be, <em>understood.</em></h1>
       <p class="hero-lead">I'm <strong>Karthikeya Kusuma</strong>, NIT Warangal alum and full time math mentor. For five years I've helped high school students replace rote drills with real intuition, and watched their scores follow.</p>
       <div class="hero-ctas">
         <a href="https://forms.gle/5dSMCAtVG1r7w4Vo8" target="_blank" rel="noreferrer" class="btn-primary">Book a free intro call &rarr;</a>
@@ -37,13 +39,20 @@
       <img src="{{ url_for('static', filename='images/m2-logo.png') }}" alt="" class="hero-logo-badge">
     </div>
   </div>
+  <div class="chalk-formulas" aria-hidden="true">
+    <span class="chalk-formula" style="top:8%;left:4%">&int;<sub>a</sub><sup>b</sup> f(x)dx</span>
+    <span class="chalk-formula" style="top:70%;left:6%">y = mx + b</span>
+    <span class="chalk-formula" style="top:20%;right:4%">e<sup>i&pi;</sup> + 1 = 0</span>
+    <span class="chalk-formula" style="top:78%;right:8%">&pi; &asymp; 3.14159</span>
+    <span class="chalk-formula" style="top:45%;left:2%">lim n&rarr;&infin; &Sigma; f(x<sub>k</sub>)&Delta;x</span>
+  </div>
 </section>
 
 <section class="testimonials-marquee-section">
   <div class="marquee-heading">
     <div>
       <p class="eyebrow">Real messages</p>
-      <h2>From parents and students, in their own words.</h2>
+      <h2 class="font-display">From parents and students, in their own words.</h2>
     </div>
     <p class="marquee-note">Unedited screenshots from WhatsApp conversations.</p>
   </div>
@@ -71,7 +80,7 @@
 
 <section id="about" class="about-section">
   <p class="eyebrow">About</p>
-  <h2>Math is my passion, and my craft.</h2>
+  <h2 class="font-display">Math is my passion, and my craft.</h2>
   <div class="about-copy">
     <p>I hold an engineering degree from <strong>NIT Warangal</strong>, one of India's most rigorous institutions. After years of competitive math, I chose to spend my days doing what I love most: guiding high schoolers through the subject that once changed my life.</p>
     <p>I've taught students from the bustling classrooms of <em>Texas</em>, the sunny coasts of <em>Florida</em>, the rolling hills of <em>West Virginia</em>, the relentless drive of <em>New Jersey</em>, the vibrant cities of <em>Canada</em> and <em>London</em>, and the heart of <em>India</em>.</p>
@@ -81,7 +90,7 @@
 
 <section id="services" class="curricula-section">
   <p class="eyebrow">Curricula</p>
-  <h2>Four curricula. One philosophy: understand, then practice.</h2>
+  <h2 class="font-display">Four curricula. One philosophy: understand, then practice.</h2>
   <div class="curricula-grid">
     <article class="curriculum-card">
       <span class="curriculum-tag">USA</span>
@@ -108,7 +117,7 @@
 
 <section id="pricing" class="pricing-section">
   <p class="eyebrow">Pricing</p>
-  <h2>Honest, regional pricing. No packages, no pressure.</h2>
+  <h2 class="font-display">Honest, regional pricing. No packages, no pressure.</h2>
   <div class="pricing-grid">
     <div class="pricing-card">
       <div class="pricing-region">London</div>
@@ -140,7 +149,7 @@
 
 <section id="testimonials" class="quotes-section">
   <p class="eyebrow">Results</p>
-  <h2>40+ families. One consistent verdict.</h2>
+  <h2 class="font-display">40+ families. One consistent verdict.</h2>
   <div class="quotes-grid">
     <figure class="quote-card">
       <div class="quote-mark">&ldquo;</div>
@@ -168,7 +177,7 @@
 
 <section class="cta-section">
   <div class="cta-card">
-    <h2>Ready to see math <em>click</em>?</h2>
+    <h2 class="font-display">Ready to see math <em>click</em>?</h2>
     <p>The intro call is free. We'll talk about your student, their goals, and whether we're a fit. No hard sell.</p>
     <a href="https://forms.gle/5dSMCAtVG1r7w4Vo8" target="_blank" rel="noreferrer" class="btn-primary">Book my free call &rarr;</a>
   </div>
@@ -187,4 +196,5 @@
     </div>
   </div>
 </footer>
+</div>
 {% endblock %}

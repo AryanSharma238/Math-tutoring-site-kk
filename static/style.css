@@ -482,13 +482,46 @@ img.curriculum-viewer {
 
 /* ---------- Marketing homepage ---------- */
 
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600;1,700&display=swap');
+
+.mkt-scope {
+  --mkt-bg: #faf7f2;
+  --mkt-card: #ffffff;
+  --mkt-text: #211f1a;
+  --mkt-muted: #6f6a60;
+  --mkt-accent: #0d7d72;
+  --mkt-accent-fg: #ffffff;
+  --mkt-border: #e7e1d4;
+  --mkt-glow: rgba(13, 125, 114, 0.28);
+
+  position: relative;
+  background: var(--mkt-bg);
+  color: var(--mkt-text);
+  overflow-x: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.mkt-scope .font-display {
+  font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
+}
+
+.mkt-bg-gradient {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(60rem 40rem at 15% -5%, rgba(13, 125, 114, 0.10), transparent 60%),
+    radial-gradient(50rem 35rem at 100% 10%, rgba(217, 141, 63, 0.12), transparent 60%);
+}
+
 .site-header {
   position: sticky;
   top: 0;
   z-index: 100;
-  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  background: color-mix(in srgb, var(--mkt-bg) 82%, transparent);
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--mkt-border);
 }
 
 .site-header-inner {
@@ -507,7 +540,7 @@ img.curriculum-viewer {
   align-items: center;
   gap: 0.6rem;
   text-decoration: none;
-  color: var(--text);
+  color: var(--mkt-text);
   flex-shrink: 0;
 }
 
@@ -515,15 +548,16 @@ img.curriculum-viewer {
   height: 34px;
   width: 34px;
   object-fit: contain;
+  border-radius: 6px;
 }
 
 .brand-name {
   font-weight: 700;
-  font-size: 1.15rem;
+  font-size: 1.2rem;
 }
 
 .brand-name sup {
-  color: var(--accent);
+  color: var(--mkt-accent);
 }
 
 .site-nav {
@@ -534,12 +568,13 @@ img.curriculum-viewer {
 }
 
 .site-nav a {
-  color: var(--muted);
+  color: var(--mkt-muted);
   text-decoration: none;
+  transition: color 0.15s;
 }
 
 .site-nav a:hover {
-  color: var(--text);
+  color: var(--mkt-text);
 }
 
 @media (min-width: 768px) {
@@ -554,7 +589,7 @@ img.curriculum-viewer {
 }
 
 .nav-signin {
-  color: var(--text);
+  color: var(--mkt-text);
   text-decoration: none;
   font-size: 0.9rem;
   font-weight: 600;
@@ -562,23 +597,32 @@ img.curriculum-viewer {
 }
 
 .nav-getstarted {
-  background: var(--accent);
-  color: white;
+  background: var(--mkt-accent);
+  color: var(--mkt-accent-fg);
   text-decoration: none;
   font-size: 0.88rem;
   font-weight: 700;
   padding: 0.55rem 1.1rem;
   border-radius: 999px;
   white-space: nowrap;
+  transition: opacity 0.15s;
+}
+
+.nav-getstarted:hover {
+  opacity: 0.9;
 }
 
 .hero {
+  position: relative;
   max-width: 1100px;
   margin: 0 auto;
   padding: 3.5rem 1.5rem 4rem;
+  overflow: visible;
 }
 
 .hero-inner {
+  position: relative;
+  z-index: 1;
   display: grid;
   grid-template-columns: 1fr;
   gap: 2.5rem;
@@ -593,12 +637,12 @@ img.curriculum-viewer {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  border: 1px solid var(--border);
-  background: var(--card);
+  border: 1px solid var(--mkt-border);
+  background: color-mix(in srgb, var(--mkt-card) 80%, transparent);
   border-radius: 999px;
   padding: 0.4rem 0.9rem;
   font-size: 0.78rem;
-  color: var(--muted);
+  color: var(--mkt-muted);
   margin-bottom: 1.5rem;
 }
 
@@ -606,7 +650,7 @@ img.curriculum-viewer {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--mkt-accent);
   animation: pulse-dot 2s infinite;
 }
 
@@ -619,28 +663,29 @@ img.curriculum-viewer {
   font-size: 2.4rem;
   line-height: 1.1;
   margin: 0;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
+  font-weight: 700;
 }
 
 @media (min-width: 768px) {
-  .hero h1 { font-size: 3.6rem; }
+  .hero h1 { font-size: 3.75rem; }
 }
 
 .hero h1 em {
-  color: var(--accent);
+  color: var(--mkt-accent);
   font-style: italic;
 }
 
 .hero-lead {
   margin-top: 1.5rem;
   font-size: 1.05rem;
-  color: var(--muted);
+  color: var(--mkt-muted);
   max-width: 34rem;
   line-height: 1.6;
 }
 
 .hero-lead strong {
-  color: var(--text);
+  color: var(--mkt-text);
 }
 
 .hero-ctas {
@@ -653,47 +698,60 @@ img.curriculum-viewer {
 .btn-primary {
   display: inline-flex;
   align-items: center;
-  background: var(--accent);
-  color: white;
+  background: var(--mkt-accent);
+  color: var(--mkt-accent-fg);
   text-decoration: none;
   font-weight: 600;
   font-size: 0.9rem;
   padding: 0.75rem 1.5rem;
   border-radius: 999px;
+  box-shadow: 0 8px 24px var(--mkt-glow);
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.btn-primary:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
 }
 
 .btn-outline {
   display: inline-flex;
   align-items: center;
-  border: 1px solid var(--border);
-  color: var(--text);
+  border: 1px solid var(--mkt-border);
+  color: var(--mkt-text);
   text-decoration: none;
   font-weight: 600;
   font-size: 0.9rem;
   padding: 0.75rem 1.5rem;
   border-radius: 999px;
+  transition: background 0.15s;
+}
+
+.btn-outline:hover {
+  background: color-mix(in srgb, var(--mkt-text) 6%, transparent);
 }
 
 .hero-quote {
   margin-top: 1.5rem;
   font-style: italic;
   font-size: 0.88rem;
-  color: var(--muted);
+  color: var(--mkt-muted);
   max-width: 30rem;
 }
 
 .hero-photo-wrap {
   position: relative;
+  z-index: 1;
   display: flex;
   justify-content: center;
 }
 
 .hero-photo {
   width: 16rem;
-  border-radius: 1.5rem;
+  border-radius: 1.75rem;
   object-fit: cover;
-  border: 1px solid var(--border);
-  box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+  border: 6px solid var(--mkt-card);
+  box-shadow: 0 25px 60px rgba(33, 31, 26, 0.18);
 }
 
 @media (min-width: 768px) {
@@ -705,14 +763,35 @@ img.curriculum-viewer {
   bottom: -1.5rem;
   right: -1rem;
   width: 5rem;
-  filter: drop-shadow(0 8px 12px rgba(0,0,0,0.3));
+  border-radius: 12px;
+  filter: drop-shadow(0 8px 16px rgba(33, 31, 26, 0.25));
+}
+
+.chalk-formulas {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .chalk-formulas { display: block; }
+}
+
+.chalk-formula {
+  position: absolute;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-style: italic;
+  font-size: 1.4rem;
+  color: color-mix(in srgb, var(--mkt-text) 22%, transparent);
+  white-space: nowrap;
 }
 
 .testimonials-marquee-section {
   padding: 2.5rem 0;
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-  background: color-mix(in srgb, var(--card) 60%, transparent);
+  border-top: 1px solid var(--mkt-border);
+  border-bottom: 1px solid var(--mkt-border);
+  background: color-mix(in srgb, var(--mkt-card) 55%, transparent);
 }
 
 .marquee-heading {
@@ -731,7 +810,7 @@ img.curriculum-viewer {
 }
 
 .marquee-note {
-  color: var(--muted);
+  color: var(--mkt-muted);
   font-size: 0.85rem;
   max-width: 16rem;
   text-align: right;
@@ -761,8 +840,9 @@ img.curriculum-viewer {
   height: 22rem;
   border-radius: 1rem;
   overflow: hidden;
-  border: 1px solid var(--border);
-  background: var(--card);
+  border: 1px solid var(--mkt-border);
+  background: var(--mkt-card);
+  box-shadow: 0 4px 14px rgba(33, 31, 26, 0.06);
 }
 
 .marquee-item img {
@@ -774,8 +854,8 @@ img.curriculum-viewer {
 }
 
 .stats-bar {
-  border-bottom: 1px solid var(--border);
-  background: color-mix(in srgb, var(--card) 50%, transparent);
+  border-bottom: 1px solid var(--mkt-border);
+  background: color-mix(in srgb, var(--mkt-card) 45%, transparent);
 }
 
 .stats-grid {
@@ -792,15 +872,16 @@ img.curriculum-viewer {
 }
 
 .stat-num {
-  font-size: 2.2rem;
-  font-weight: 800;
-  color: var(--accent);
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 2.3rem;
+  font-weight: 700;
+  color: var(--mkt-accent);
 }
 
 .stat-label {
   margin-top: 0.25rem;
   font-size: 0.85rem;
-  color: var(--muted);
+  color: var(--mkt-muted);
 }
 
 .stats-footnote {
@@ -809,21 +890,23 @@ img.curriculum-viewer {
   padding: 0 1.5rem 1.5rem;
   text-align: center;
   font-size: 0.75rem;
-  color: var(--muted);
+  color: var(--mkt-muted);
 }
 
 .eyebrow {
   text-transform: uppercase;
   letter-spacing: 0.2em;
   font-size: 0.8rem;
-  color: var(--accent);
+  color: var(--mkt-accent);
   margin: 0 0 1rem;
+  font-weight: 600;
 }
 
 .about-section, .curricula-section, .pricing-section, .quotes-section {
   max-width: 1100px;
   margin: 0 auto;
   padding: 4rem 1.5rem;
+  position: relative;
 }
 
 .about-section h2, .curricula-section h2, .pricing-section h2, .quotes-section h2 {
@@ -837,13 +920,13 @@ img.curriculum-viewer {
   display: flex;
   flex-direction: column;
   gap: 1.2rem;
-  color: var(--muted);
+  color: var(--mkt-muted);
   line-height: 1.7;
   max-width: 42rem;
 }
 
-.about-copy strong { color: var(--text); }
-.about-copy em { color: var(--text); font-style: italic; }
+.about-copy strong { color: var(--mkt-text); }
+.about-copy em { color: var(--mkt-text); font-style: italic; }
 
 .curricula-grid {
   display: grid;
@@ -860,15 +943,16 @@ img.curriculum-viewer {
 }
 
 .curriculum-card {
-  border: 1px solid var(--border);
-  background: var(--card);
+  border: 1px solid var(--mkt-border);
+  background: var(--mkt-card);
   border-radius: 1rem;
   padding: 1.5rem;
+  box-shadow: 0 4px 14px rgba(33, 31, 26, 0.05);
   transition: transform 0.15s, border-color 0.15s;
 }
 
 .curriculum-card:hover {
-  border-color: var(--accent);
+  border-color: var(--mkt-accent);
   transform: translateY(-3px);
 }
 
@@ -878,18 +962,19 @@ img.curriculum-viewer {
   font-family: monospace;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--accent);
+  color: var(--mkt-accent);
   margin-bottom: 1rem;
 }
 
 .curriculum-card h3 {
-  font-size: 1.25rem;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.3rem;
   margin: 0 0 0.6rem;
 }
 
 .curriculum-card p {
   font-size: 0.88rem;
-  color: var(--muted);
+  color: var(--mkt-muted);
   line-height: 1.6;
   margin: 0;
 }
@@ -906,24 +991,26 @@ img.curriculum-viewer {
 
 .pricing-card {
   position: relative;
-  border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--card) 85%, transparent);
+  border: 1px solid var(--mkt-border);
+  background: color-mix(in srgb, var(--mkt-card) 85%, transparent);
   border-radius: 1rem;
   padding: 2rem;
+  box-shadow: 0 4px 14px rgba(33, 31, 26, 0.05);
 }
 
 .pricing-card.featured {
-  border-color: var(--accent);
+  border-color: var(--mkt-accent);
   border-width: 2px;
-  background: var(--card);
+  background: var(--mkt-card);
+  box-shadow: 0 12px 32px var(--mkt-glow);
 }
 
 .pricing-badge {
   position: absolute;
   top: -0.9rem;
   left: 2rem;
-  background: var(--accent);
-  color: white;
+  background: var(--mkt-accent);
+  color: var(--mkt-accent-fg);
   font-size: 0.72rem;
   font-weight: 700;
   padding: 0.3rem 0.8rem;
@@ -932,30 +1019,32 @@ img.curriculum-viewer {
 
 .pricing-region {
   font-size: 0.85rem;
-  color: var(--muted);
+  color: var(--mkt-muted);
 }
 
 .pricing-tier {
-  font-size: 1.3rem;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.35rem;
   margin: 0.3rem 0 1.5rem;
 }
 
 .pricing-amount {
+  font-family: 'Playfair Display', Georgia, serif;
   font-size: 2rem;
-  font-weight: 800;
-  color: var(--accent);
+  font-weight: 700;
+  color: var(--mkt-accent);
 }
 
 .pricing-unit {
   font-size: 0.85rem;
-  color: var(--muted);
+  color: var(--mkt-muted);
   margin-top: 0.2rem;
 }
 
 .pricing-inr {
   font-family: monospace;
   font-size: 0.78rem;
-  color: var(--muted);
+  color: var(--mkt-muted);
   margin-top: 0.2rem;
 }
 
@@ -977,16 +1066,18 @@ img.curriculum-viewer {
 }
 
 .quote-card {
-  border: 1px solid var(--border);
-  background: var(--card);
+  border: 1px solid var(--mkt-border);
+  background: var(--mkt-card);
   border-radius: 1rem;
   padding: 2rem;
   margin: 0;
+  box-shadow: 0 4px 14px rgba(33, 31, 26, 0.05);
 }
 
 .quote-mark {
+  font-family: 'Playfair Display', Georgia, serif;
   font-size: 2.8rem;
-  color: var(--accent);
+  color: var(--mkt-accent);
   line-height: 1;
   margin-bottom: 0.25rem;
 }
@@ -1000,7 +1091,7 @@ img.curriculum-viewer {
 .quote-card figcaption {
   margin-top: 1.5rem;
   font-size: 0.85rem;
-  color: var(--muted);
+  color: var(--mkt-muted);
 }
 
 .quotes-disclaimer {
@@ -1008,7 +1099,7 @@ img.curriculum-viewer {
   text-align: center;
   font-size: 0.75rem;
   font-style: italic;
-  color: var(--muted);
+  color: var(--mkt-muted);
 }
 
 .cta-section {
@@ -1020,10 +1111,12 @@ img.curriculum-viewer {
 .cta-card {
   position: relative;
   text-align: center;
-  border: 1px solid var(--border);
-  background: var(--card);
+  border: 1px solid var(--mkt-border);
+  background: var(--mkt-card);
   border-radius: 1.5rem;
   padding: 3.5rem 2rem;
+  box-shadow: 0 12px 32px var(--mkt-glow);
+  overflow: hidden;
 }
 
 .cta-card h2 {
@@ -1035,18 +1128,18 @@ img.curriculum-viewer {
 }
 
 .cta-card h2 em {
-  color: var(--accent);
+  color: var(--mkt-accent);
   font-style: italic;
 }
 
 .cta-card p {
-  color: var(--muted);
+  color: var(--mkt-muted);
   max-width: 28rem;
   margin: 0 auto 1.75rem;
 }
 
 .site-footer {
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--mkt-border);
 }
 
 .footer-inner {
@@ -1059,7 +1152,7 @@ img.curriculum-viewer {
   align-items: center;
   justify-content: space-between;
   font-size: 0.85rem;
-  color: var(--muted);
+  color: var(--mkt-muted);
 }
 
 @media (min-width: 640px) {
@@ -1070,13 +1163,14 @@ img.curriculum-viewer {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  color: var(--text);
+  color: var(--mkt-text);
 }
 
 .footer-logo {
   height: 24px;
   width: 24px;
   object-fit: contain;
+  border-radius: 6px;
 }
 
 .footer-links {
@@ -1085,10 +1179,10 @@ img.curriculum-viewer {
 }
 
 .footer-links a {
-  color: var(--muted);
+  color: var(--mkt-muted);
   text-decoration: none;
 }
 
 .footer-links a:hover {
-  color: var(--text);
+  color: var(--mkt-text);
 }
