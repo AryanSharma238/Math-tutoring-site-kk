@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Quizzes{% endblock %}
+{% block body %}
+<div class="portal">
+  <aside class="sidebar" id="sidebar">
+    <button class="collapse-btn" id="collapseBtn" title="Collapse">☰</button>
+    <div class="sidebar-content">
+      <h2 class="brand">🎓 Math Tutoring</h2>
+      <p class="who">{{ user.name or user.email }}</p>
+      {% include "_portal_nav.html" %}
+      <a class="btn logout-btn" href="{{ url_for('logout') }}">Sign out</a>
+    </div>
+  </aside>
+  <main class="content">
+    <h1>Quizzes</h1>
+    {% if profile.quizzes %}
+      <ul class="file-list">
+        {% for q in profile.quizzes %}
+          <li><a href="{{ url_for('take_quiz', quiz_id=q.id) }}">{{ q.title }}</a> <span class="muted small">{{ q.created_at.strftime('%Y-%m-%d') }}</span></li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="muted">No quizzes assigned yet.</p>
+    {% endif %}
+  </main>
+</div>
+{% endblock %}

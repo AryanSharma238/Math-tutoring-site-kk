@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block body %}
+<div class="portal">
+  <aside class="sidebar" id="sidebar">
+    <button class="collapse-btn" id="collapseBtn" title="Collapse">☰</button>
+    <div class="sidebar-content">
+      <h2 class="brand">🎓 Math Tutoring</h2>
+      <p class="who">{{ user.name or user.email }}</p>
+      {% include "_portal_nav.html" %}
+      <a class="btn logout-btn" href="{{ url_for('logout') }}">Sign out</a>
+    </div>
+  </aside>
+  <main class="content">
+    <h1>Settings</h1>
+
+    <section class="card">
+      <h3>Appearance</h3>
+      <div class="theme-toggle">
+        <button id="lightBtn">☀️ Light</button>
+        <button id="darkBtn">🌙 Dark</button>
+      </div>
+    </section>
+
+    <section class="card danger">
+      <h3>Delete account</h3>
+      <p class="muted">This permanently deletes your account and all associated data.</p>
+      <form method="POST" action="{{ url_for('delete_account') }}" onsubmit="return confirm('Are you sure you want to permanently delete your account?');">
+        <button type="submit" class="danger-btn">Delete my account</button>
+      </form>
+    </section>
+  </main>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  document.getElementById("lightBtn").addEventListener("click", () => setTheme("light"));
+  document.getElementById("darkBtn").addEventListener("click", () => setTheme("dark"));
+  function setTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("theme", theme);
+  }
+</script>
+{% endblock %}

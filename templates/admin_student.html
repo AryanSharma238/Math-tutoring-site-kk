@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Manage {{ student.email }}{% endblock %}
+{% block body %}
+<div class="portal">
+  {% include "_admin_sidebar.html" %}
+  <main class="content">
+    <h1>{{ student.name or student.email }}</h1>
+    {% if not profile.setup_complete %}
+      <p class="notice">This student hasn't been set up yet -- they'll see a waiting screen until you save profile info below.</p>
+    {% endif %}
+
+    <section class="card">
+      <h3>Profile</h3>
+      <form method="POST" action="{{ url_for('admin_student_update', user_id=student.id) }}" class="form-grid">
+        <label>Course
+          <input type="text" name="course_name" value="{{ profile.course_name or '' }}" placeholder="Algebra 2">
+        </label>
+        <label>Total classes
+          <input type="number" name="total_classes" min="0" value="{{ profile.total_classes }}">
+        </label>
+        <label>Student timezone
+          <select name="timezone">
+            {% for tz in timezones %}
+              <option value="{{ tz }}" {{ "selected" if tz == profile.timezone else "" }}>{{ tz }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <button type="submit">Save profile</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h3>Curriculum</h3>
+      {% if profile.curriculum_files %}
+        <ul class="file-list">
+          {% for f in profile.curriculum_files %}
+            <li><a href="{{ url_for('serve_curriculum', file_id=f.id) }}" target="_blank">{{ f.filename }}</a> <span class="muted small">{{ f.uploaded_at.strftime('%Y-%m-%d %H:%M') }} UTC</span></li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      <form method="POST" action="{{ url_for('admin_student_curriculum', user_id=student.id) }}" enctype="multipart/form-data" class="form-row">
+        <input type="file" name="curriculum" accept=".pdf,.jpg,.jpeg,.png" required>
+        <button type="submit">Upload</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h3>Class schedule</h3>
+      {% if profile.class_sessions %}
+        <ul class="class-list">
+          {% for c in profile.class_sessions %}
+            <li>
+              {{ c.start_at.strftime('%Y-%m-%d %H:%M') }} UTC
+              <form method="POST" action="{{ url_for('admin_student_delete_class', user_id=student.id, class_id=c.id) }}" class="inline-form">
+                <button type="submit" class="link-btn">remove</button>
+              </form>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      <form method="POST" action="{{ url_for('admin_student_add_class', user_id=student.id) }}" class="form-row">
+        <input type="date" name="class_date" required>
+        <input type="time" name="class_time" required>
+        <select name="class_timezone">
+          {% for tz in timezones %}
+            <option value="{{ tz }}" {{ "selected" if tz == profile.timezone else "" }}>{{ tz }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit">Add class</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h3>Assign a quiz</h3>
+      <form method="POST" action="{{ url_for('admin_student_generate_quiz', user_id=student.id) }}" class="form-grid">
+        <label>Topic / instructions
+          <textarea name="topic" rows="3" placeholder="e.g. 10-question quiz on quadratic formula, mixed difficulty"></textarea>
+        </label>
+        <label>How many questions
+          <input type="number" name="count" min="1" max="25" value="5">
+        </label>
+        <label>Model
+          <select name="model">
+            {% for m in models %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
+          </select>
+        </label>
+        <button type="submit">Generate & assign quiz</button>
+      </form>
+
+      {% if profile.quizzes %}
+        <h4>Assigned quizzes</h4>
+        <ul class="file-list">
+          {% for q in profile.quizzes %}
+            <li>{{ q.title }} <span class="muted small">{{ q.created_at.strftime('%Y-%m-%d %H:%M') }} UTC</span></li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </section>
+  </main>
+</div>
+{% endblock %}

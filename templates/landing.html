@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Math Tutoring — Sign In{% endblock %}
+{% block body %}
+<main class="landing">
+  <div class="landing-card">
+    <h1>🎓 Math Tutoring Portal</h1>
+    <p class="subtitle">Sign in with your email to get started.</p>
+    <form method="POST" action="{{ url_for('auth') }}" class="landing-form">
+      <label for="name">Name (first time only)</label>
+      <input type="text" id="name" name="name" placeholder="Jane Doe">
+
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" placeholder="you@example.com" required>
+
+      <button type="submit">Sign In / Get Started</button>
+    </form>
+  </div>
+</main>
+{% endblock %}

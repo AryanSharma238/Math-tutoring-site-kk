@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Waiting for setup{% endblock %}
+{% block body %}
+<main class="landing">
+  <div class="landing-card">
+    <h1>⏳ Almost there</h1>
+    <p class="subtitle">
+      Signed in as {{ user.email }}. Please wait for your teacher to set up
+      your profile (course, class schedule, and curriculum). Check back soon!
+    </p>
+    <a class="btn" href="{{ url_for('logout') }}">Sign out</a>
+  </div>
+</main>
+{% endblock %}

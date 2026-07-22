@@ -1,0 +1,19 @@
+<aside class="sidebar" id="sidebar">
+  <button class="collapse-btn" id="collapseBtn" title="Collapse">☰</button>
+  <div class="sidebar-content">
+    <h2 class="brand">🎓 Math Tutoring</h2>
+    <p class="who">Admin &middot; {{ user.email }}</p>
+    <a class="btn logout-btn" href="{{ url_for('logout') }}">Sign out</a>
+    <h3 class="section-label">Students</h3>
+    <div class="student-list">
+      {% for s in students %}
+        <a href="{{ url_for('admin_student', user_id=s.id) }}"
+           class="student-link {{ 'active' if (student is defined) and student and student.id == s.id else '' }}">
+          {{ s.name or s.email }}
+        </a>
+      {% else %}
+        <p class="muted small">No students signed in yet.</p>
+      {% endfor %}
+    </div>
+  </div>
+</aside>

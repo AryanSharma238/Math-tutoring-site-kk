@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block body %}
+<div class="portal">
+  <aside class="sidebar" id="sidebar">
+    <button class="collapse-btn" id="collapseBtn" title="Collapse">☰</button>
+    <div class="sidebar-content">
+      <h2 class="brand">🎓 Math Tutoring</h2>
+      <p class="who">{{ user.name or user.email }}</p>
+      {% include "_portal_nav.html" %}
+      <a class="btn logout-btn" href="{{ url_for('logout') }}">Sign out</a>
+    </div>
+  </aside>
+
+  <main class="content">
+    <h1>Dashboard</h1>
+
+    <div class="dash-grid">
+      <section class="card classes-left">
+        <h3>Classes left</h3>
+        <p class="big-number">{{ profile.classes_remaining }}</p>
+        <p class="muted">of {{ profile.total_classes }} total &middot; {{ profile.course_name or "No course set" }}</p>
+      </section>
+
+      <section class="card next-class">
+        <h3>Next class is</h3>
+        {% if next_class %}
+          <p class="big-text" id="nextClassDate"
+             data-utc="{{ next_class.start_at.isoformat() }}Z"
+             data-timezone="{{ profile.timezone }}">
+            Loading...
+          </p>
+          <p class="countdown" id="countdown"></p>
+        {% else %}
+          <p class="muted">No upcoming classes scheduled yet.</p>
+        {% endif %}
+      </section>
+
+      <section class="card curriculum">
+        <h3>Curriculum</h3>
+        {% if profile.latest_curriculum %}
+          {% set f = profile.latest_curriculum %}
+          {% if f.mimetype == 'application/pdf' %}
+            <embed src="{{ url_for('serve_curriculum', file_id=f.id) }}" type="application/pdf" class="curriculum-viewer">
+          {% else %}
+            <img src="{{ url_for('serve_curriculum', file_id=f.id) }}" alt="{{ f.filename }}" class="curriculum-viewer">
+          {% endif %}
+          <p class="muted small">{{ f.filename }}</p>
+        {% else %}
+          <p class="muted">No curriculum uploaded yet.</p>
+        {% endif %}
+      </section>
+    </div>
+  </main>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  const nextClassEl = document.getElementById("nextClassDate");
+  if (nextClassEl) {
+    const utcDate = new Date(nextClassEl.dataset.utc);
+    const tz = nextClassEl.dataset.timezone;
+    nextClassEl.textContent = new Intl.DateTimeFormat("en-US", {
+      dateStyle: "full", timeStyle: "short", timeZone: tz,
+    }).format(utcDate);
+
+    const countdownEl = document.getElementById("countdown");
+    function updateCountdown() {
+      const diffMs = utcDate - new Date();
+      if (diffMs <= 0) {
+        countdownEl.textContent = "Class time!";
+        return;
+      }
+      if (diffMs <= 30 * 60 * 1000) {
+        const mins = Math.floor(diffMs / 60000);
+        const secs = Math.floor((diffMs % 60000) / 1000);
+        countdownEl.textContent = `Starting in ${mins}m ${secs}s`;
+      } else {
+        countdownEl.textContent = "";
+      }
+    }
+    updateCountdown();
+    setInterval(updateCountdown, 1000);
+  }
+</script>
+{% endblock %}
