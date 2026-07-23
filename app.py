@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import datetime, timezone as dt_timezone
+from datetime import datetime, timedelta, timezone as dt_timezone
 from functools import wraps
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -382,10 +382,25 @@ def register_routes(app):
         except ValueError:
             profile.total_classes = 0
         profile.timezone = request.form.get("timezone") or profile.timezone
+        if not profile.setup_complete:
+            profile.classes_left = profile.total_classes
         profile.setup_complete = True
 
         db.session.commit()
         flash("Student profile updated.")
+        return redirect(url_for("admin_student", user_id=user_id))
+
+    @app.route("/admin/student/<int:user_id>/classes_left", methods=["POST"])
+    @login_required
+    @admin_required
+    def admin_student_set_classes_left(user_id):
+        student = User.query.filter_by(id=user_id, is_admin=False).first_or_404()
+        try:
+            student.profile.classes_left = max(int(request.form.get("classes_left", 0)), 0)
+        except ValueError:
+            pass
+        db.session.commit()
+        flash("Classes left updated.")
         return redirect(url_for("admin_student", user_id=user_id))
 
     @app.route("/admin/student/<int:user_id>/curriculum", methods=["POST"])
@@ -420,6 +435,10 @@ def register_routes(app):
         date_str = request.form.get("class_date")
         time_str = request.form.get("class_time")
         tz_name = request.form.get("class_timezone") or student.profile.timezone
+        try:
+            repeat_weeks = max(min(int(request.form.get("repeat_weeks", 1)), 52), 1)
+        except (ValueError, TypeError):
+            repeat_weeks = 1
 
         try:
             from zoneinfo import ZoneInfo
@@ -430,10 +449,13 @@ def register_routes(app):
             flash("Invalid date/time/timezone.")
             return redirect(url_for("admin_student", user_id=user_id))
 
-        session_obj = ClassSession(profile_id=student.profile.id, start_at=utc_dt)
-        db.session.add(session_obj)
+        for week in range(repeat_weeks):
+            db.session.add(ClassSession(
+                profile_id=student.profile.id,
+                start_at=utc_dt + timedelta(weeks=week),
+            ))
         db.session.commit()
-        flash("Class scheduled.")
+        flash(f"Scheduled {repeat_weeks} class(es)." if repeat_weeks > 1 else "Class scheduled.")
         return redirect(url_for("admin_student", user_id=user_id))
 
     @app.route("/admin/student/<int:user_id>/classes/<int:class_id>/delete", methods=["POST"])
@@ -517,6 +539,17 @@ def register_routes(app):
         db.session.add(quiz)
         db.session.commit()
         return {"ok": True, "quiz_id": quiz.id, "title": quiz.title}
+
+    @app.route("/admin/student/<int:user_id>/quiz/<int:quiz_id>/delete", methods=["POST"])
+    @login_required
+    @admin_required
+    def admin_student_quiz_delete(user_id, quiz_id):
+        student = User.query.filter_by(id=user_id, is_admin=False).first_or_404()
+        quiz = Quiz.query.filter_by(id=quiz_id, profile_id=student.profile.id).first_or_404()
+        db.session.delete(quiz)
+        db.session.commit()
+        flash("Quiz removed.")
+        return redirect(url_for("admin_student", user_id=user_id))
 
     # --- Curriculum file serving ---
 

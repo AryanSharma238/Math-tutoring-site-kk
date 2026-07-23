@@ -30,6 +30,13 @@
         </label>
         <button type="submit">Save profile</button>
       </form>
+
+      <form method="POST" action="{{ url_for('admin_student_set_classes_left', user_id=student.id) }}" class="form-row" style="margin-top:1rem;">
+        <label style="display:flex;flex-direction:column;gap:0.3rem;font-size:0.85rem;font-weight:600;">Classes left (adjust anytime)
+          <input type="number" name="classes_left" min="0" value="{{ profile.classes_left }}">
+        </label>
+        <button type="submit">Update classes left</button>
+      </form>
     </section>
 
     <section class="card">
@@ -69,6 +76,10 @@
             <option value="{{ tz }}" {{ "selected" if tz == profile.timezone else "" }}>{{ tz }}</option>
           {% endfor %}
         </select>
+        <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;">Repeat weekly
+          <input type="number" name="repeat_weeks" min="1" max="52" value="1" style="width:4rem;">
+          <span class="muted small">week(s)</span>
+        </label>
         <button type="submit">Add class</button>
       </form>
     </section>
@@ -99,16 +110,18 @@
         <button type="button" id="discardQuizBtn" class="secondary-btn">Discard</button>
       </div>
 
-      {% if profile.quizzes %}
-        <h4>Assigned quizzes</h4>
-        <ul class="file-list" id="assignedQuizList">
-          {% for q in profile.quizzes %}
-            <li>{{ q.title }} <span class="muted small">{{ q.created_at.strftime('%Y-%m-%d %H:%M') }} UTC</span></li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <ul class="file-list" id="assignedQuizList"></ul>
-      {% endif %}
+      <h4>Assigned quizzes</h4>
+      <div class="quiz-list" id="assignedQuizList">
+        {% for q in profile.quizzes %}
+          <div class="quiz-row">
+            <span class="quiz-row-count">{{ q.question_count }} question{{ 's' if q.question_count != 1 else '' }}</span>
+            <span class="quiz-row-title">{{ q.title }}</span>
+            <form method="POST" action="{{ url_for('admin_student_quiz_delete', user_id=student.id, quiz_id=q.id) }}" class="inline-form" onsubmit="return confirm('Remove this quiz?');">
+              <button type="submit" class="link-btn">remove</button>
+            </form>
+          </div>
+        {% endfor %}
+      </div>
     </section>
   </main>
 </div>
@@ -179,11 +192,7 @@
       statusEl.textContent = `Sent "${data.title}" to the student.`;
       previewWrap.hidden = true;
       pendingQuiz = null;
-
-      const list = document.getElementById("assignedQuizList");
-      const li = document.createElement("li");
-      li.textContent = data.title;
-      list.appendChild(li);
+      setTimeout(() => window.location.reload(), 600);
     } catch (err) {
       statusEl.textContent = `Error: ${err.message}`;
     } finally {

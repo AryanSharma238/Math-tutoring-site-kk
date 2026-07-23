@@ -36,6 +36,7 @@ class StudentProfile(db.Model):
 
     course_name = db.Column(db.String(255), nullable=True)
     total_classes = db.Column(db.Integer, default=0, nullable=False)
+    classes_left = db.Column(db.Integer, default=0, nullable=False)
     timezone = db.Column(db.String(64), default="America/New_York", nullable=False)
     setup_complete = db.Column(db.Boolean, default=False, nullable=False)
 
@@ -54,9 +55,7 @@ class StudentProfile(db.Model):
 
     @property
     def classes_remaining(self):
-        now = datetime.now(dt_timezone.utc)
-        past = sum(1 for c in self.class_sessions if c.start_at.replace(tzinfo=dt_timezone.utc) < now)
-        return max(self.total_classes - past, 0)
+        return self.classes_left
 
     @property
     def next_class(self):

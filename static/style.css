@@ -504,13 +504,12 @@ img.curriculum-viewer {
 
 .quiz-row-count {
   flex-shrink: 0;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--muted);
-  background: var(--bg);
-  border: 1px solid var(--border);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--accent-foreground, white);
+  background: var(--accent);
   border-radius: 999px;
-  padding: 0.3rem 0.7rem;
+  padding: 0.4rem 0.85rem;
   white-space: nowrap;
 }
 
@@ -1082,6 +1081,10 @@ img.curriculum-viewer {
   animation: marquee-scroll 140s linear infinite;
 }
 
+.marquee-row:hover .marquee-track {
+  animation-play-state: paused;
+}
+
 @keyframes marquee-scroll {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
@@ -1165,18 +1168,47 @@ img.curriculum-viewer {
 .about-section h2, .curricula-section h2, .pricing-section h2, .quotes-section h2 {
   font-size: 2.2rem;
   max-width: 40rem;
-  margin: 0 0 3rem;
+  margin: 0 0 1.5rem;
   line-height: 1.2;
+}
+
+.about-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+@media (min-width: 768px) {
+  .about-grid { grid-template-columns: 18rem 1fr; }
+}
+
+.about-photo {
+  width: 100%;
+  max-width: 18rem;
+  border-radius: 1rem;
+  object-fit: cover;
+  border: 1px solid var(--mkt-border);
+  box-shadow: 0 10px 30px rgba(33, 31, 26, 0.1);
 }
 
 .about-copy {
   display: flex;
   flex-direction: column;
-  gap: 1.2rem;
+  gap: 0.6rem;
   color: var(--mkt-muted);
-  line-height: 1.7;
-  max-width: 42rem;
+  line-height: 1.6;
 }
+
+.about-copy h3 {
+  color: var(--mkt-text);
+  font-size: 1.3rem;
+  margin: 0.75rem 0 0;
+}
+
+.about-copy h3:first-child { margin-top: 0; }
+
+.about-copy p { margin: 0 0 0.5rem; }
 
 .about-copy strong { color: var(--mkt-text); }
 .about-copy em { color: var(--mkt-text); font-style: italic; }

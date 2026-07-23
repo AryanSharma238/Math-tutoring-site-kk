@@ -13,7 +13,6 @@
       <a href="#about">About</a>
       <a href="#services">Curricula</a>
       <a href="#pricing">Pricing</a>
-      <a href="#testimonials">Results</a>
     </nav>
     <div class="site-header-actions">
       {% if session.user_id %}
@@ -42,13 +41,6 @@
       <img src="{{ url_for('static', filename='images/karthikeya.png') }}" alt="Karthikeya Kusuma, math mentor" class="hero-photo">
       <img src="{{ url_for('static', filename='images/m2-logo.png') }}" alt="" class="hero-logo-badge">
     </div>
-  </div>
-  <div class="chalk-formulas" aria-hidden="true">
-    <span class="chalk-formula" style="top:8%;left:4%">&int;<sub>a</sub><sup>b</sup> f(x)dx</span>
-    <span class="chalk-formula" style="top:70%;left:6%">y = mx + b</span>
-    <span class="chalk-formula" style="top:20%;right:4%">e<sup>i&pi;</sup> + 1 = 0</span>
-    <span class="chalk-formula" style="top:78%;right:8%">&pi; &asymp; 3.14159</span>
-    <span class="chalk-formula" style="top:45%;left:2%">lim n&rarr;&infin; &Sigma; f(x<sub>k</sub>)&Delta;x</span>
   </div>
 </section>
 
@@ -85,10 +77,15 @@
 <section id="about" class="about-section">
   <p class="eyebrow">About</p>
   <h2 class="font-display">Math is my passion, and my craft.</h2>
-  <div class="about-copy">
-    <p>I hold an engineering degree from <strong>NIT Warangal</strong>, one of India's most rigorous institutions. After years of competitive math, I chose to spend my days doing what I love most: guiding high schoolers through the subject that once changed my life.</p>
-    <p>I've taught students from the bustling classrooms of <em>Texas</em>, the sunny coasts of <em>Florida</em>, the rolling hills of <em>West Virginia</em>, the relentless drive of <em>New Jersey</em>, the vibrant cities of <em>Canada</em> and <em>London</em>, and the heart of <em>India</em>.</p>
-    <p>Every lesson is tailored to the student's strengths, their gaps, and the exam they're aiming at. The result isn't just better scores; it's a student who finally <em>likes</em> math.</p>
+  <div class="about-grid">
+    <img src="{{ url_for('static', filename='images/karthikeya.png') }}" alt="Karthikeya Kusuma, math mentor" class="about-photo">
+    <div class="about-copy">
+      <h3 class="font-display">Math is my passion</h3>
+      <p>I'm <strong>Karthikeya Kusuma</strong>. I proudly hold an engineering degree from NIT Warangal, one of India's most prestigious institutions. I've embarked on a mission to guide and inspire high school students to turn their dreams into reality. My goal? To help them secure a spot at their dream university.</p>
+      <h3 class="font-display">Students taught</h3>
+      <p>I have guided over 20 high school students worldwide&mdash;from the bustling classrooms of <strong>Texas,</strong> the sunny coasts of <strong>North and South Florida</strong>, and the rolling hills of <strong>West Virginia</strong>, along with the infamous <strong>New Jersey</strong> to the vibrant cities of <strong>Canada,</strong> and <strong>London</strong> and the dynamic communities of <strong>India</strong>.</p>
+      <p>Through personalized <strong>one-on-one mentorship,</strong> I have helped students not only master complex mathematical concepts but also build confidence, develop problem-solving skills, and cultivate a lifelong passion for learning. My approach focuses on tailoring lessons to each student's strengths and challenges, ensuring they achieve academic excellence while gaining a deeper appreciation for the subject.</p>
+    </div>
   </div>
 </section>
 
@@ -149,34 +146,6 @@
       <a href="https://forms.gle/5dSMCAtVG1r7w4Vo8" target="_blank" rel="noreferrer" class="btn-outline pricing-btn">Book now</a>
     </div>
   </div>
-</section>
-
-<section id="testimonials" class="quotes-section">
-  <p class="eyebrow">Results</p>
-  <h2 class="font-display">40+ families. One consistent verdict.</h2>
-  <div class="quotes-grid">
-    <figure class="quote-card">
-      <div class="quote-mark">&ldquo;</div>
-      <blockquote>My daughter went from dreading calculus to asking for extra problems. Karthikeya doesn't just teach, he gets kids to think.</blockquote>
-      <figcaption>Parent, New Jersey</figcaption>
-    </figure>
-    <figure class="quote-card">
-      <div class="quote-mark">&ldquo;</div>
-      <blockquote>I jumped from 580 to 760 on SAT math in four months. He made everything click.</blockquote>
-      <figcaption>Student, Texas</figcaption>
-    </figure>
-    <figure class="quote-card">
-      <div class="quote-mark">&ldquo;</div>
-      <blockquote>We tried three tutors before M&sup2;. Karthikeya was the only one who actually adapted to how my son learns.</blockquote>
-      <figcaption>Parent, London</figcaption>
-    </figure>
-    <figure class="quote-card">
-      <div class="quote-mark">&ldquo;</div>
-      <blockquote>JEE Advanced felt impossible until I started his sessions. His problem solving frameworks are unreal.</blockquote>
-      <figcaption>Student, Hyderabad</figcaption>
-    </figure>
-  </div>
-  <p class="quotes-disclaimer">Quotes paraphrased from parent and student feedback shared with the tutor. Identifying details withheld for privacy.</p>
 </section>
 
 <section class="cta-section">
