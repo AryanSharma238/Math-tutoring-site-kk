@@ -90,3 +90,21 @@ function escapeHtml(str) {
   div.textContent = str;
   return div.innerHTML;
 }
+
+// Reveal-on-scroll: sections stay hidden until scrolled into view.
+(function () {
+  const targets = document.querySelectorAll(".reveal-on-scroll");
+  if (!targets.length) return;
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("is-visible");
+          observer.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.15 }
+  );
+  targets.forEach((el) => observer.observe(el));
+})();

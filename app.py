@@ -304,8 +304,12 @@ def register_routes(app):
     def _log_in_local_user(supabase_uid, email, name):
         user = User.query.filter_by(supabase_uid=supabase_uid).first()
         if not user:
-            admin_email = os.environ.get("ADMIN_EMAIL", "").strip().lower()
-            is_admin = bool(admin_email) and email == admin_email
+            admin_emails = {
+                e.strip().lower()
+                for e in os.environ.get("ADMIN_EMAIL", "").split(",")
+                if e.strip()
+            }
+            is_admin = email in admin_emails
             user = User(
                 supabase_uid=supabase_uid, email=email, name=name or None,
                 is_admin=is_admin,

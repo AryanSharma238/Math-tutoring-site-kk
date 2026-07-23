@@ -1170,6 +1170,56 @@ img.curriculum-viewer {
   color: var(--mkt-muted);
 }
 
+.reveal-on-scroll {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.reveal-on-scroll.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.videos-section {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 4rem 1.5rem;
+}
+
+.videos-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 900px) {
+  .videos-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+.video-card {
+  border: 1px solid var(--mkt-border);
+  background: var(--mkt-card);
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow: 0 4px 14px rgba(33, 31, 26, 0.06);
+}
+
+.video-card iframe {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: none;
+}
+
+.video-title {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--mkt-text);
+}
+
 .eyebrow {
   text-transform: uppercase;
   letter-spacing: 0.2em;
