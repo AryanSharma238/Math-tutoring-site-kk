@@ -16,8 +16,12 @@
       <a href="#testimonials">Results</a>
     </nav>
     <div class="site-header-actions">
-      <a href="{{ url_for('login') }}" class="nav-signin">Sign In</a>
-      <a href="{{ url_for('login', mode='signup') }}" class="nav-getstarted">Get Started</a>
+      {% if session.user_id %}
+        <a href="{{ url_for('dashboard') }}" class="nav-getstarted">Go to Dashboard</a>
+      {% else %}
+        <a href="{{ url_for('login') }}" class="nav-signin">Sign In</a>
+        <a href="{{ url_for('login', mode='signup') }}" class="nav-getstarted">Get Started</a>
+      {% endif %}
     </div>
   </div>
 </header>

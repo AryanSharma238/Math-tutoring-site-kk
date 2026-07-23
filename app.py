@@ -138,8 +138,6 @@ def current_user():
 def register_routes(app):
     @app.route("/")
     def home():
-        if "user_id" in session:
-            return redirect(url_for("dashboard"))
         return render_template("home.html")
 
     @app.route("/login")
