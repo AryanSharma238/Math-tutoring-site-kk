@@ -60,6 +60,17 @@ class StudentProfile(db.Model):
     def latest_curriculum(self):
         return self.curriculum_files[0] if self.curriculum_files else None
 
+    @property
+    def latest_assigned_quiz(self):
+        return self.quizzes[0] if self.quizzes else None
+
+    @property
+    def latest_completed_quiz(self):
+        completed = [q for q in self.quizzes if q.completed_at]
+        if not completed:
+            return None
+        return max(completed, key=lambda q: q.completed_at)
+
 
 class CurriculumFile(db.Model):
     __tablename__ = "curriculum_files"
@@ -90,3 +101,12 @@ class Quiz(db.Model):
     questions_json = db.Column(db.Text, nullable=False)
     model_used = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(dt_timezone.utc))
+    completed_at = db.Column(db.DateTime, nullable=True)
+
+    @property
+    def question_count(self):
+        import json
+        try:
+            return len(json.loads(self.questions_json))
+        except (ValueError, TypeError):
+            return 0

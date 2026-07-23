@@ -2,18 +2,11 @@
 {% block title %}{{ quiz.title }}{% endblock %}
 {% block body %}
 <div class="portal">
-  <aside class="sidebar" id="sidebar">
-    <button class="collapse-btn" id="collapseBtn" title="Collapse">☰</button>
-    <div class="sidebar-content">
-      <h2 class="brand">🎓 Math Tutoring</h2>
-      <p class="who">{{ user.name or user.email }}</p>
-      {% include "_portal_nav.html" %}
-      <a class="btn logout-btn" href="{{ url_for('logout') }}">Sign out</a>
-    </div>
-  </aside>
+  {% include "_student_sidebar.html" %}
   <main class="content">
     <a href="{{ url_for('quizzes') }}" class="back-link">&larr; Back to quizzes</a>
     <h1>{{ quiz.title }}</h1>
+    {% if quiz.completed_at %}<p class="muted small">Completed {{ quiz.completed_at.strftime('%b %d, %Y') }}</p>{% endif %}
     <section id="quizContainer"></section>
   </main>
 </div>
@@ -21,6 +14,17 @@
 {% block scripts %}
 <script>
   const questions = {{ questions | tojson }};
-  renderQuizQuestions(questions, document.getElementById("quizContainer"));
+  const quizContainer = document.getElementById("quizContainer");
+  renderQuizQuestions(questions, quizContainer);
+
+  const alreadyCompleted = {{ "true" if quiz.completed_at else "false" }};
+  if (!alreadyCompleted) {
+    quizContainer.addEventListener("click", () => {
+      const answered = quizContainer.querySelectorAll('.quiz-question[data-answered="true"]').length;
+      if (answered === questions.length) {
+        fetch("{{ url_for('complete_quiz', quiz_id=quiz.id) }}", { method: "POST" });
+      }
+    });
+  }
 </script>
 {% endblock %}

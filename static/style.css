@@ -1,40 +1,36 @@
+@font-face {
+  font-family: "Instrument Serif";
+  src: url("https://fonts.gstatic.com/s/instrumentserif/v4/jizDREVItHgc8qDIbSTKq4XKVjnUts.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
-  --bg: #f7f7fb;
-  --card: #ffffff;
-  --text: #1a1a2e;
-  --muted: #6b6b80;
-  --accent: #4f46e5;
-  --border: #e2e2ec;
-  --danger: #dc2626;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #14141f;
-    --card: #1e1e2e;
-    --text: #f0f0f5;
-    --muted: #9a9ab0;
-    --accent: #818cf8;
-    --border: #2e2e42;
-  }
-}
-
-:root[data-theme="light"] {
-  --bg: #f7f7fb;
-  --card: #ffffff;
-  --text: #1a1a2e;
-  --muted: #6b6b80;
-  --accent: #4f46e5;
-  --border: #e2e2ec;
+  --bg: oklch(0.985 0.005 90);
+  --card: oklch(1 0 0);
+  --text: oklch(0.22 0.02 250);
+  --muted: oklch(0.48 0.015 245);
+  --accent: oklch(0.52 0.13 215);
+  --accent-foreground: oklch(0.99 0.003 240);
+  --border: oklch(0.9 0.01 240);
+  --danger: oklch(0.62 0.22 25);
+  --font-display: "Instrument Serif", "Times New Roman", serif;
+  --gradient-hero:
+    radial-gradient(1200px 600px at 50% -10%, color-mix(in oklab, var(--accent) 14%, transparent) 0%, transparent 60%),
+    radial-gradient(800px 500px at 90% 10%, color-mix(in oklab, oklch(0.72 0.14 70) 16%, transparent) 0%, transparent 60%);
+  --shadow-glow: 0 30px 80px -30px color-mix(in oklab, var(--accent) 35%, transparent);
+  --shadow-card: 0 10px 40px -20px oklch(0.2 0.02 250 / 0.18);
 }
 
 :root[data-theme="dark"] {
-  --bg: #14141f;
-  --card: #1e1e2e;
-  --text: #f0f0f5;
-  --muted: #9a9ab0;
-  --accent: #818cf8;
-  --border: #2e2e42;
+  --bg: oklch(0.19 0.015 250);
+  --card: oklch(0.24 0.015 250);
+  --text: oklch(0.95 0.005 90);
+  --muted: oklch(0.68 0.02 245);
+  --accent: oklch(0.68 0.12 200);
+  --accent-foreground: oklch(0.15 0.02 250);
+  --border: oklch(0.32 0.015 250);
 }
 
 * { box-sizing: border-box; }
@@ -45,6 +41,20 @@ body {
   background: var(--bg);
   color: var(--text);
   line-height: 1.5;
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0,
+      transparent 39px,
+      color-mix(in oklab, var(--text) 3%, transparent) 39px,
+      color-mix(in oklab, var(--text) 3%, transparent) 40px
+    );
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.01em;
 }
 
 a { color: var(--accent); }
@@ -181,11 +191,34 @@ button {
 .sidebar-content {
   padding: 1rem 1.25rem 1.25rem;
   padding-top: 3.5rem;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
-.brand {
-  font-size: 1.1rem;
-  margin: 0 0 0.25rem;
+.sidebar-brand-link {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  text-decoration: none;
+  color: var(--text);
+  margin-bottom: 0.25rem;
+}
+
+.sidebar-logo {
+  height: 28px;
+  width: 28px;
+  object-fit: contain;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.sidebar-brand-name {
+  font-size: 1.15rem;
+}
+
+.sidebar-brand-name sup {
+  color: var(--accent);
 }
 
 .who {
@@ -213,12 +246,35 @@ button {
 
 .tabs a.active, .tabs a:hover {
   background: var(--accent);
-  color: white;
+  color: var(--accent-foreground, white);
+}
+
+.sidebar-bottom {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.settings-link {
+  padding: 0.55rem 0.7rem;
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.settings-link.active, .settings-link:hover {
+  background: var(--accent);
+  color: var(--accent-foreground, white);
 }
 
 .logout-btn {
   width: 100%;
-  margin-top: 0.5rem;
+  margin-top: 0.25rem;
 }
 
 .section-label {
@@ -250,6 +306,7 @@ button {
   flex: 1;
   padding: 2rem 2.5rem;
   max-width: 980px;
+  margin: 0 auto;
 }
 
 .card {
@@ -279,11 +336,57 @@ button {
 .dash-grid {
   display: grid;
   grid-template-columns: 1fr 1.4fr 1.6fr;
+  grid-template-rows: auto auto;
+  grid-template-areas:
+    "classes next curriculum"
+    "activity activity curriculum";
   gap: 1.25rem;
 }
 
+.dash-grid .classes-left { grid-area: classes; }
+.dash-grid .next-class { grid-area: next; }
+.dash-grid .activity { grid-area: activity; }
+.dash-grid .curriculum { grid-area: curriculum; }
+
 @media (max-width: 900px) {
-  .dash-grid { grid-template-columns: 1fr; }
+  .dash-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "classes"
+      "next"
+      "activity"
+      "curriculum";
+  }
+}
+
+.activity-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.activity-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.activity-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.activity-value {
+  font-weight: 600;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.activity-value:hover {
+  color: var(--accent);
 }
 
 .big-number {
@@ -348,6 +451,67 @@ img.curriculum-viewer {
   flex-direction: column;
   gap: 0.4rem;
   font-size: 0.9rem;
+}
+
+.quiz-section-label {
+  font-size: 1rem;
+  margin: 2rem 0 0.75rem;
+}
+
+.quiz-section-label:first-of-type {
+  margin-top: 0;
+}
+
+.quiz-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
+}
+
+.quiz-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.9rem 1.1rem;
+  text-decoration: none;
+  color: var(--text);
+  transition: border-color 0.15s;
+}
+
+.quiz-row:hover {
+  border-color: var(--accent);
+}
+
+.quiz-row.completed {
+  opacity: 0.72;
+}
+
+.quiz-row-date {
+  font-size: 0.78rem;
+  color: var(--muted);
+  flex-shrink: 0;
+  width: 6rem;
+}
+
+.quiz-row-title {
+  flex: 1;
+  font-weight: 600;
+}
+
+.quiz-row-count {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.3rem 0.7rem;
+  white-space: nowrap;
 }
 
 .inline-form {
@@ -481,28 +645,35 @@ img.curriculum-viewer {
 }
 
 /* ---------- Marketing homepage ---------- */
-
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600;1,700&display=swap');
+/* Always light + the exact brand palette, regardless of the portal's dark/light toggle */
 
 .mkt-scope {
-  --mkt-bg: #faf7f2;
-  --mkt-card: #ffffff;
-  --mkt-text: #211f1a;
-  --mkt-muted: #6f6a60;
-  --mkt-accent: #0d7d72;
-  --mkt-accent-fg: #ffffff;
-  --mkt-border: #e7e1d4;
-  --mkt-glow: rgba(13, 125, 114, 0.28);
+  --mkt-bg: oklch(0.985 0.005 90);
+  --mkt-card: oklch(1 0 0);
+  --mkt-text: oklch(0.22 0.02 250);
+  --mkt-muted: oklch(0.48 0.015 245);
+  --mkt-accent: oklch(0.52 0.13 215);
+  --mkt-accent-fg: oklch(0.99 0.003 240);
+  --mkt-border: oklch(0.9 0.01 240);
+  --mkt-glow: color-mix(in oklab, var(--mkt-accent) 35%, transparent);
 
   position: relative;
   background: var(--mkt-bg);
   color: var(--mkt-text);
   overflow-x: hidden;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0,
+      transparent 39px,
+      color-mix(in oklab, var(--mkt-text) 3%, transparent) 39px,
+      color-mix(in oklab, var(--mkt-text) 3%, transparent) 40px
+    );
 }
 
 .mkt-scope .font-display {
-  font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  font-family: var(--font-display);
 }
 
 .mkt-bg-gradient {
@@ -511,8 +682,8 @@ img.curriculum-viewer {
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(60rem 40rem at 15% -5%, rgba(13, 125, 114, 0.10), transparent 60%),
-    radial-gradient(50rem 35rem at 100% 10%, rgba(217, 141, 63, 0.12), transparent 60%);
+    radial-gradient(1200px 600px at 50% -10%, color-mix(in oklab, var(--mkt-accent) 14%, transparent) 0%, transparent 60%),
+    radial-gradient(800px 500px at 90% 10%, color-mix(in oklab, oklch(0.72 0.14 70) 16%, transparent) 0%, transparent 60%);
 }
 
 .site-header {
@@ -780,7 +951,7 @@ img.curriculum-viewer {
 
 .chalk-formula {
   position: absolute;
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: var(--font-display);
   font-style: italic;
   font-size: 1.4rem;
   color: color-mix(in srgb, var(--mkt-text) 22%, transparent);
@@ -872,7 +1043,7 @@ img.curriculum-viewer {
 }
 
 .stat-num {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: var(--font-display);
   font-size: 2.3rem;
   font-weight: 700;
   color: var(--mkt-accent);
@@ -967,7 +1138,7 @@ img.curriculum-viewer {
 }
 
 .curriculum-card h3 {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: var(--font-display);
   font-size: 1.3rem;
   margin: 0 0 0.6rem;
 }
@@ -1023,13 +1194,13 @@ img.curriculum-viewer {
 }
 
 .pricing-tier {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: var(--font-display);
   font-size: 1.35rem;
   margin: 0.3rem 0 1.5rem;
 }
 
 .pricing-amount {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: var(--font-display);
   font-size: 2rem;
   font-weight: 700;
   color: var(--mkt-accent);
@@ -1075,7 +1246,7 @@ img.curriculum-viewer {
 }
 
 .quote-mark {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: var(--font-display);
   font-size: 2.8rem;
   color: var(--mkt-accent);
   line-height: 1;

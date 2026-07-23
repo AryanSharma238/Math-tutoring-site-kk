@@ -2,15 +2,7 @@
 {% block title %}Dashboard{% endblock %}
 {% block body %}
 <div class="portal">
-  <aside class="sidebar" id="sidebar">
-    <button class="collapse-btn" id="collapseBtn" title="Collapse">☰</button>
-    <div class="sidebar-content">
-      <h2 class="brand">🎓 Math Tutoring</h2>
-      <p class="who">{{ user.name or user.email }}</p>
-      {% include "_portal_nav.html" %}
-      <a class="btn logout-btn" href="{{ url_for('logout') }}">Sign out</a>
-    </div>
-  </aside>
+  {% include "_student_sidebar.html" %}
 
   <main class="content">
     <h1>Dashboard</h1>
@@ -34,6 +26,26 @@
         {% else %}
           <p class="muted">No upcoming classes scheduled yet.</p>
         {% endif %}
+      </section>
+
+      <section class="card activity">
+        <h3>Homework</h3>
+        <div class="activity-row">
+          <span class="activity-label">Latest assigned</span>
+          {% if profile.latest_assigned_quiz %}
+            <a href="{{ url_for('take_quiz', quiz_id=profile.latest_assigned_quiz.id) }}" class="activity-value">{{ profile.latest_assigned_quiz.title }}</a>
+          {% else %}
+            <span class="muted small">None yet</span>
+          {% endif %}
+        </div>
+        <div class="activity-row">
+          <span class="activity-label">Latest completed</span>
+          {% if profile.latest_completed_quiz %}
+            <a href="{{ url_for('take_quiz', quiz_id=profile.latest_completed_quiz.id) }}" class="activity-value">{{ profile.latest_completed_quiz.title }}</a>
+          {% else %}
+            <span class="muted small">None yet</span>
+          {% endif %}
+        </div>
       </section>
 
       <section class="card curriculum">

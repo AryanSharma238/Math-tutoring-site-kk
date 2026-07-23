@@ -55,7 +55,7 @@ FREE_MODELS = [
     "cohere/north-mini-code:free",
 ]
 
-QUIZ_SYSTEM_PROMPT = """You are a math problem generator. Given a topic/prompt, generate exactly {count} distinct multiple-choice math problems matching it.
+QUIZ_SYSTEM_PROMPT = """You are a math problem generator. Given a topic/prompt, generate exactly {count} distinct multiple-choice math problems matching it, plus a short descriptive title for the quiz as a whole.
 
 Each question must have exactly 4 answer choices, exactly one of which is correct.
 Each question must include a detailed step-by-step solution.
@@ -63,18 +63,24 @@ Each incorrect choice must include an explanation of the specific mistake or mis
 Verify all numbers and answer choices are mathematically correct and consistent before outputting.
 
 The "question" field must contain ONLY the question text -- never embed the answer choices inside it.
+The "title" field should be a short, specific, human-readable name for the quiz (4-8 words), based on the topic -- e.g. "Trigonometric Identities Practice" or "Quadratic Formula Word Problems". Do not just repeat the raw topic text verbatim.
 Do not include any internal reasoning, revisions, second-guessing, notes, or commentary anywhere in the output, including inside string fields. Do not use markdown code fences.
-Return ONLY a valid JSON array, where each element has exactly this shape:
+Return ONLY a single valid JSON object with exactly this shape:
 
 {{
-  "question": "string",
-  "choices": [
-    {{"label": "A", "text": "string", "correct": true, "explanation": ""}},
-    {{"label": "B", "text": "string", "correct": false, "explanation": "why this is wrong"}},
-    {{"label": "C", "text": "string", "correct": false, "explanation": "why this is wrong"}},
-    {{"label": "D", "text": "string", "correct": false, "explanation": "why this is wrong"}}
-  ],
-  "solution": "detailed step-by-step solution string"
+  "title": "string",
+  "questions": [
+    {{
+      "question": "string",
+      "choices": [
+        {{"label": "A", "text": "string", "correct": true, "explanation": ""}},
+        {{"label": "B", "text": "string", "correct": false, "explanation": "why this is wrong"}},
+        {{"label": "C", "text": "string", "correct": false, "explanation": "why this is wrong"}},
+        {{"label": "D", "text": "string", "correct": false, "explanation": "why this is wrong"}}
+      ],
+      "solution": "detailed step-by-step solution string"
+    }}
+  ]
 }}
 
 Exactly one choice per question must have "correct": true; the rest must be "correct": false with a non-empty "explanation". The correct choice's "explanation" should be an empty string."""
@@ -222,7 +228,7 @@ def register_routes(app):
     @app.route("/logout")
     def logout():
         session.clear()
-        return redirect(url_for("login"))
+        return redirect(url_for("home"))
 
     @app.route("/dashboard")
     @login_required
@@ -238,7 +244,7 @@ def register_routes(app):
 
         return render_template(
             "student_dashboard.html", user=user, profile=profile,
-            next_class=profile.next_class,
+            next_class=profile.next_class, active="dashboard",
         )
 
     @app.route("/quizzes")
@@ -250,7 +256,18 @@ def register_routes(app):
         profile = user.profile
         if not profile or not profile.setup_complete:
             return render_template("waiting.html", user=user)
-        return render_template("quizzes.html", user=user, profile=profile)
+
+        all_quizzes = profile.quizzes
+        recently_assigned = all_quizzes[0] if all_quizzes else None
+        todo = [q for q in all_quizzes if not q.completed_at and q.id != (recently_assigned.id if recently_assigned else None)]
+        completed = sorted(
+            (q for q in all_quizzes if q.completed_at), key=lambda q: q.completed_at, reverse=True
+        )
+        return render_template(
+            "quizzes.html", user=user, profile=profile,
+            recently_assigned=recently_assigned, todo=todo, completed=completed,
+            active="quizzes",
+        )
 
     @app.route("/quizzes/<int:quiz_id>")
     @login_required
@@ -260,13 +277,25 @@ def register_routes(app):
         if user.is_admin or quiz.profile_id != user.profile.id:
             abort(403)
         questions = json.loads(quiz.questions_json)
-        return render_template("take_quiz.html", user=user, quiz=quiz, questions=questions)
+        return render_template("take_quiz.html", user=user, quiz=quiz, questions=questions, active="quizzes")
+
+    @app.route("/quizzes/<int:quiz_id>/complete", methods=["POST"])
+    @login_required
+    def complete_quiz(quiz_id):
+        user = current_user()
+        quiz = Quiz.query.get_or_404(quiz_id)
+        if user.is_admin or quiz.profile_id != user.profile.id:
+            abort(403)
+        if not quiz.completed_at:
+            quiz.completed_at = datetime.now(dt_timezone.utc)
+            db.session.commit()
+        return {"ok": True}
 
     @app.route("/settings")
     @login_required
     def settings():
         user = current_user()
-        return render_template("settings.html", user=user)
+        return render_template("settings.html", user=user, active="settings")
 
     @app.route("/account/delete", methods=["POST"])
     @login_required
@@ -409,12 +438,13 @@ def register_routes(app):
                 cleaned = cleaned.split("```")[1]
                 if cleaned.startswith("json"):
                     cleaned = cleaned[4:]
-            start, end = cleaned.find("["), cleaned.rfind("]")
-            questions = json.loads(cleaned[start:end + 1])
+            start, end = cleaned.find("{"), cleaned.rfind("}")
+            parsed = json.loads(cleaned[start:end + 1])
+            questions = parsed["questions"]
+            title = (parsed.get("title") or "").strip() or (topic[:100] if topic else "Untitled quiz")
         except Exception as exc:
             return {"error": f"Quiz generation failed: {exc}"}, 502
 
-        title = topic[:100] if topic else "Untitled quiz"
         return {"title": title, "model": model, "questions": questions}
 
     @app.route("/admin/student/<int:user_id>/quiz/assign", methods=["POST"])

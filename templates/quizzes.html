@@ -2,25 +2,38 @@
 {% block title %}Quizzes{% endblock %}
 {% block body %}
 <div class="portal">
-  <aside class="sidebar" id="sidebar">
-    <button class="collapse-btn" id="collapseBtn" title="Collapse">☰</button>
-    <div class="sidebar-content">
-      <h2 class="brand">🎓 Math Tutoring</h2>
-      <p class="who">{{ user.name or user.email }}</p>
-      {% include "_portal_nav.html" %}
-      <a class="btn logout-btn" href="{{ url_for('logout') }}">Sign out</a>
-    </div>
-  </aside>
+  {% include "_student_sidebar.html" %}
   <main class="content">
     <h1>Quizzes</h1>
-    {% if profile.quizzes %}
-      <ul class="file-list">
-        {% for q in profile.quizzes %}
-          <li><a href="{{ url_for('take_quiz', quiz_id=q.id) }}">{{ q.title }}</a> <span class="muted small">{{ q.created_at.strftime('%Y-%m-%d') }}</span></li>
+
+    {% if recently_assigned %}
+      <h3 class="quiz-section-label">Recently assigned</h3>
+      <div class="quiz-list">
+        {% set q = recently_assigned %}
+        {% include "_quiz_row.html" with context %}
+      </div>
+    {% endif %}
+
+    <h3 class="quiz-section-label">To do</h3>
+    {% if todo %}
+      <div class="quiz-list">
+        {% for q in todo %}
+          {% include "_quiz_row.html" with context %}
         {% endfor %}
-      </ul>
+      </div>
     {% else %}
-      <p class="muted">No quizzes assigned yet.</p>
+      <p class="muted">Nothing left to do.</p>
+    {% endif %}
+
+    <h3 class="quiz-section-label">Completed</h3>
+    {% if completed %}
+      <div class="quiz-list">
+        {% for q in completed %}
+          {% include "_quiz_row.html" with context %}
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="muted">No completed quizzes yet.</p>
     {% endif %}
   </main>
 </div>

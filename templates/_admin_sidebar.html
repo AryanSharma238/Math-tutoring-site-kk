@@ -1,7 +1,10 @@
 <aside class="sidebar" id="sidebar">
   <button class="collapse-btn" id="collapseBtn" title="Collapse">☰</button>
   <div class="sidebar-content">
-    <h2 class="brand">🎓 Math Tutoring</h2>
+    <a href="{{ url_for('home') }}" class="sidebar-brand-link">
+      <img src="{{ url_for('static', filename='images/m2-logo.png') }}" alt="M² Channel" class="sidebar-logo">
+      <span class="sidebar-brand-name font-display">M<sup>2</sup> Channel</span>
+    </a>
     <p class="who">Admin &middot; {{ user.email }}</p>
     <a class="btn logout-btn" href="{{ url_for('logout') }}">Sign out</a>
     <h3 class="section-label">Students</h3>

@@ -1,0 +1,5 @@
+<a href="{{ url_for('take_quiz', quiz_id=q.id) }}" class="quiz-row {{ 'completed' if q.completed_at else '' }}">
+  <span class="quiz-row-date">{{ (q.completed_at or q.created_at).strftime('%b %d, %Y') }}</span>
+  <span class="quiz-row-title">{{ q.title }}</span>
+  <span class="quiz-row-count">{{ q.question_count }} question{{ 's' if q.question_count != 1 else '' }}</span>
+</a>
