@@ -182,6 +182,30 @@ def _run_quiz_generation_job(job_id, topic, model, count):
             _quiz_jobs[job_id] = {"status": "error", "error": str(exc)}
 
 
+
+# Columns added to models after the initial deploy. db.create_all() only creates
+# brand-new tables -- it never adds columns to tables that already exist. Rather
+# than requiring a manual ALTER TABLE in Supabase every time a model changes,
+# this list is applied automatically on every startup; each statement is a no-op
+# (caught and ignored) once the column already exists.
+_PENDING_COLUMN_MIGRATIONS = [
+    "ALTER TABLE quizzes ADD COLUMN completed_at TIMESTAMP",
+    "ALTER TABLE quizzes ADD COLUMN answers_json TEXT",
+    "ALTER TABLE student_profiles ADD COLUMN classes_left INTEGER NOT NULL DEFAULT 0",
+]
+
+
+def _run_pending_migrations():
+    from sqlalchemy import text
+    for stmt in _PENDING_COLUMN_MIGRATIONS:
+        try:
+            with db.engine.connect() as conn:
+                conn.execute(text(stmt))
+                conn.commit()
+        except Exception:
+            pass  # column already exists (or table doesn't exist yet) -- safe to ignore
+
+
 def create_app():
     app = Flask(__name__)
     app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me")
@@ -198,6 +222,7 @@ def create_app():
 
     with app.app_context():
         db.create_all()
+        _run_pending_migrations()
 
     register_routes(app)
     return app
