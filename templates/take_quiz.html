@@ -14,17 +14,127 @@
 {% block scripts %}
 <script>
   const questions = {{ questions | tojson }};
-  const quizContainer = document.getElementById("quizContainer");
-  renderQuizQuestions(questions, quizContainer);
+  const savedAnswers = {{ saved_answers | tojson }};
+  const quizId = {{ quiz.id }};
+  const container = document.getElementById("quizContainer");
 
-  const alreadyCompleted = {{ "true" if quiz.completed_at else "false" }};
-  if (!alreadyCompleted) {
-    quizContainer.addEventListener("click", () => {
-      const answered = quizContainer.querySelectorAll('.quiz-question[data-answered="true"]').length;
-      if (answered === questions.length) {
-        fetch("{{ url_for('complete_quiz', quiz_id=quiz.id) }}", { method: "POST" });
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function render() {
+    container.innerHTML = questions
+      .map((p, pi) => {
+        const saved = savedAnswers[String(pi)];
+        const choicesHtml = (p.choices || [])
+          .map((c, ci) => `
+            <button type="button" class="choice-btn" data-problem="${pi}" data-choice="${ci}">
+              <span class="choice-label">${escapeHtml(c.label || "")}</span>
+              ${escapeHtml(c.text || "")}
+            </button>
+          `)
+          .join("");
+        return `
+          <div class="quiz-question" data-problem="${pi}" data-submitted="${saved && saved.submitted ? "true" : "false"}">
+            <span class="num">${pi + 1}.</span> ${escapeHtml(p.question || "")}
+            <div class="quiz-choices">${choicesHtml}</div>
+            <button type="button" class="submit-answer-btn" data-problem="${pi}" disabled>Submit answer</button>
+            <p class="quiz-feedback" id="feedback-${pi}"></p>
+            <button type="button" class="steps-toggle" data-problem="${pi}">Show step-by-step solution</button>
+            <div class="steps" id="steps-${pi}" hidden>${escapeHtml(p.solution || "")}</div>
+          </div>
+        `;
+      })
+      .join("");
+
+    // Restore saved state (selection and/or submission) for each question.
+    questions.forEach((p, pi) => {
+      const saved = savedAnswers[String(pi)];
+      if (!saved) return;
+      const qEl = container.querySelector(`.quiz-question[data-problem="${pi}"]`);
+      const choiceBtn = qEl.querySelector(`.choice-btn[data-choice="${saved.choice}"]`);
+      if (choiceBtn) choiceBtn.classList.add("selected");
+      const submitBtn = qEl.querySelector(".submit-answer-btn");
+      if (choiceBtn) submitBtn.disabled = false;
+      if (saved.submitted) {
+        gradeQuestion(pi, saved.choice);
       }
     });
   }
+
+  function gradeQuestion(pi, selectedChoice) {
+    const problem = questions[pi];
+    const qEl = container.querySelector(`.quiz-question[data-problem="${pi}"]`);
+    const feedbackEl = document.getElementById(`feedback-${pi}`);
+    qEl.dataset.submitted = "true";
+
+    qEl.querySelectorAll(".choice-btn").forEach((btn) => {
+      const ci = parseInt(btn.dataset.choice, 10);
+      const c = problem.choices[ci];
+      if (c.correct) btn.classList.add("correct");
+      if (ci === selectedChoice && !c.correct) btn.classList.add("incorrect");
+      btn.disabled = true;
+    });
+    qEl.querySelector(".submit-answer-btn").hidden = true;
+
+    const chosen = problem.choices[selectedChoice];
+    if (chosen && chosen.correct) {
+      feedbackEl.textContent = "Correct!";
+      feedbackEl.className = "quiz-feedback correct-text";
+    } else {
+      feedbackEl.textContent = (chosen && chosen.explanation) || "That's not right.";
+      feedbackEl.className = "quiz-feedback incorrect-text";
+    }
+  }
+
+  function saveAnswer(pi, choiceIndex, submitted) {
+    savedAnswers[String(pi)] = { choice: choiceIndex, submitted };
+    fetch(`/quizzes/${quizId}/answer`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question_index: pi, choice_index: choiceIndex, submitted }),
+    }).catch(() => {});
+  }
+
+  container.addEventListener("click", (e) => {
+    const stepsBtn = e.target.closest(".steps-toggle");
+    if (stepsBtn) {
+      const pi = stepsBtn.dataset.problem;
+      const stepsEl = document.getElementById(`steps-${pi}`);
+      stepsEl.hidden = !stepsEl.hidden;
+      stepsBtn.textContent = stepsEl.hidden ? "Show step-by-step solution" : "Hide step-by-step solution";
+      return;
+    }
+
+    const choiceBtn = e.target.closest(".choice-btn");
+    if (choiceBtn) {
+      const pi = parseInt(choiceBtn.dataset.problem, 10);
+      const qEl = container.querySelector(`.quiz-question[data-problem="${pi}"]`);
+      if (qEl.dataset.submitted === "true") return;
+
+      qEl.querySelectorAll(".choice-btn").forEach((b) => b.classList.remove("selected"));
+      choiceBtn.classList.add("selected");
+      qEl.querySelector(".submit-answer-btn").disabled = false;
+
+      const ci = parseInt(choiceBtn.dataset.choice, 10);
+      saveAnswer(pi, ci, false);
+      return;
+    }
+
+    const submitBtn = e.target.closest(".submit-answer-btn");
+    if (submitBtn) {
+      const pi = parseInt(submitBtn.dataset.problem, 10);
+      const qEl = container.querySelector(`.quiz-question[data-problem="${pi}"]`);
+      const selected = qEl.querySelector(".choice-btn.selected");
+      if (!selected) return;
+      const ci = parseInt(selected.dataset.choice, 10);
+      gradeQuestion(pi, ci);
+      saveAnswer(pi, ci, true);
+    }
+  });
+
+  render();
 </script>
 {% endblock %}

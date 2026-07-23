@@ -1,5 +1,7 @@
 import json
 import os
+import threading
+import uuid
 from datetime import datetime, timedelta, timezone as dt_timezone
 from functools import wraps
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
@@ -15,6 +17,12 @@ from supabase import create_client
 from models import ClassSession, CurriculumFile, Quiz, StudentProfile, TodoItem, User, db
 
 GITHUB_REPO = "AryanSharma238/Math-tutoring-site-kk"
+
+# In-memory quiz-generation job store. Generation runs in a background thread so the
+# HTTP request that kicks it off returns instantly -- this avoids Render's platform
+# request timeout killing a long-running OpenRouter call.
+_quiz_jobs = {}
+_quiz_jobs_lock = threading.Lock()
 
 
 def _ensure_sslmode(db_url):
@@ -86,6 +94,92 @@ Return ONLY a single valid JSON object with exactly this shape:
 }}
 
 Exactly one choice per question must have "correct": true; the rest must be "correct": false with a non-empty "explanation". The correct choice's "explanation" should be an empty string."""
+
+
+def _extract_json_object(raw):
+    cleaned = raw.strip()
+    if cleaned.startswith("```"):
+        cleaned = cleaned.split("```")[1]
+        if cleaned.startswith("json"):
+            cleaned = cleaned[4:]
+    start, end = cleaned.find("{"), cleaned.rfind("}")
+    if start == -1 or end == -1 or end < start:
+        raise ValueError("The AI didn't return any JSON. Please try again.")
+    return json.loads(cleaned[start:end + 1])
+
+
+def _validate_quiz_payload(parsed, topic):
+    if not isinstance(parsed, dict) or not isinstance(parsed.get("questions"), list) or not parsed["questions"]:
+        raise ValueError("The AI response was missing its question list. Please try again.")
+
+    for i, q in enumerate(parsed["questions"], start=1):
+        if not isinstance(q, dict) or not q.get("question") or not q.get("solution"):
+            raise ValueError(f"Question {i} is missing text or a solution. Please try again.")
+        choices = q.get("choices")
+        if not isinstance(choices, list) or len(choices) < 2:
+            raise ValueError(f"Question {i} is missing answer choices. Please try again.")
+        for c in choices:
+            if not isinstance(c, dict) or "text" not in c or "correct" not in c:
+                raise ValueError(f"Question {i} has a malformed answer choice. Please try again.")
+        correct_count = sum(1 for c in choices if c.get("correct"))
+        if correct_count != 1:
+            raise ValueError(f"Question {i} doesn't have exactly one correct answer. Please try again.")
+
+    title = (parsed.get("title") or "").strip() or (topic[:100] if topic else "Untitled quiz")
+    return title, parsed["questions"]
+
+
+def _generate_quiz(topic, model, count):
+    api_key = os.environ.get("OPENROUTER_API_KEY")
+    if not api_key:
+        raise RuntimeError("Server is missing OPENROUTER_API_KEY.")
+
+    try:
+        resp = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": QUIZ_SYSTEM_PROMPT.format(count=count)},
+                    {"role": "user", "content": topic or "general math problems, mixed topics"},
+                ],
+            },
+            timeout=280,
+        )
+    except requests.exceptions.Timeout:
+        raise RuntimeError("The AI model took too long to respond. Try again, or pick a faster model / fewer questions.")
+    except requests.exceptions.RequestException as exc:
+        raise RuntimeError(f"Could not reach OpenRouter: {exc}")
+
+    if not resp.ok:
+        raise RuntimeError(f"OpenRouter returned an error (HTTP {resp.status_code}). Try again in a moment.")
+
+    try:
+        body = resp.json()
+    except ValueError:
+        raise RuntimeError("OpenRouter returned an unexpected (non-JSON) response. Try again.")
+
+    if not body.get("choices"):
+        raise RuntimeError("OpenRouter's response didn't include any content -- the model may be overloaded. Try again.")
+
+    raw = body["choices"][0].get("message", {}).get("content") or ""
+    parsed = _extract_json_object(raw)
+    title, questions = _validate_quiz_payload(parsed, topic)
+    return {"title": title, "model": model, "questions": questions}
+
+
+def _run_quiz_generation_job(job_id, topic, model, count):
+    try:
+        result = _generate_quiz(topic, model, count)
+        with _quiz_jobs_lock:
+            _quiz_jobs[job_id] = {"status": "done", "result": result}
+    except Exception as exc:
+        with _quiz_jobs_lock:
+            _quiz_jobs[job_id] = {"status": "error", "error": str(exc)}
 
 
 def create_app():
@@ -277,19 +371,48 @@ def register_routes(app):
         if user.is_admin or quiz.profile_id != user.profile.id:
             abort(403)
         questions = json.loads(quiz.questions_json)
-        return render_template("take_quiz.html", user=user, quiz=quiz, questions=questions, active="quizzes")
+        try:
+            saved_answers = json.loads(quiz.answers_json) if quiz.answers_json else {}
+        except ValueError:
+            saved_answers = {}
+        return render_template(
+            "take_quiz.html", user=user, quiz=quiz, questions=questions,
+            saved_answers=saved_answers, active="quizzes",
+        )
 
-    @app.route("/quizzes/<int:quiz_id>/complete", methods=["POST"])
+    @app.route("/quizzes/<int:quiz_id>/answer", methods=["POST"])
     @login_required
-    def complete_quiz(quiz_id):
+    def save_quiz_answer(quiz_id):
         user = current_user()
         quiz = Quiz.query.get_or_404(quiz_id)
         if user.is_admin or quiz.profile_id != user.profile.id:
             abort(403)
-        if not quiz.completed_at:
+
+        data = request.get_json(silent=True) or {}
+        try:
+            q_index = str(int(data.get("question_index")))
+            choice_index = int(data.get("choice_index"))
+        except (TypeError, ValueError):
+            return {"error": "Invalid answer payload."}, 400
+        submitted = bool(data.get("submitted"))
+
+        try:
+            answers = json.loads(quiz.answers_json) if quiz.answers_json else {}
+        except ValueError:
+            answers = {}
+        answers[q_index] = {"choice": choice_index, "submitted": submitted}
+        quiz.answers_json = json.dumps(answers)
+
+        total_questions = len(json.loads(quiz.questions_json))
+        all_submitted = (
+            len(answers) == total_questions
+            and all(a.get("submitted") for a in answers.values())
+        )
+        if all_submitted and not quiz.completed_at:
             quiz.completed_at = datetime.now(dt_timezone.utc)
-            db.session.commit()
-        return {"ok": True}
+
+        db.session.commit()
+        return {"ok": True, "completed": bool(quiz.completed_at)}
 
     @app.route("/settings")
     @login_required
@@ -416,6 +539,9 @@ def register_routes(app):
                 flash("Only PDF, JPG, JPEG, or PNG files are allowed.")
                 return redirect(url_for("admin_student", user_id=user_id))
 
+            for old in list(student.profile.curriculum_files):
+                db.session.delete(old)
+
             record = CurriculumFile(
                 profile_id=student.profile.id,
                 filename=file.filename,
@@ -468,10 +594,10 @@ def register_routes(app):
         db.session.commit()
         return redirect(url_for("admin_student", user_id=user_id))
 
-    @app.route("/admin/student/<int:user_id>/quiz/preview", methods=["POST"])
+    @app.route("/admin/student/<int:user_id>/quiz/generate/start", methods=["POST"])
     @login_required
     @admin_required
-    def admin_student_quiz_preview(user_id):
+    def admin_student_quiz_generate_start(user_id):
         User.query.filter_by(id=user_id, is_admin=False).first_or_404()
         data = request.get_json(silent=True) or {}
         topic = (data.get("topic") or "").strip()
@@ -481,41 +607,29 @@ def register_routes(app):
         except (ValueError, TypeError):
             count = 5
 
-        api_key = os.environ.get("OPENROUTER_API_KEY")
-        if not api_key:
+        if not os.environ.get("OPENROUTER_API_KEY"):
             return {"error": "Server is missing OPENROUTER_API_KEY -- ask the admin to set it in Render."}, 400
 
-        try:
-            resp = requests.post(
-                "https://openrouter.ai/api/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": model,
-                    "messages": [
-                        {"role": "system", "content": QUIZ_SYSTEM_PROMPT.format(count=count)},
-                        {"role": "user", "content": topic or "general math problems, mixed topics"},
-                    ],
-                },
-                timeout=110,
-            )
-            resp.raise_for_status()
-            raw = resp.json()["choices"][0]["message"]["content"]
-            cleaned = raw.strip()
-            if cleaned.startswith("```"):
-                cleaned = cleaned.split("```")[1]
-                if cleaned.startswith("json"):
-                    cleaned = cleaned[4:]
-            start, end = cleaned.find("{"), cleaned.rfind("}")
-            parsed = json.loads(cleaned[start:end + 1])
-            questions = parsed["questions"]
-            title = (parsed.get("title") or "").strip() or (topic[:100] if topic else "Untitled quiz")
-        except Exception as exc:
-            return {"error": f"Quiz generation failed: {exc}"}, 502
+        job_id = uuid.uuid4().hex
+        with _quiz_jobs_lock:
+            _quiz_jobs[job_id] = {"status": "pending"}
 
-        return {"title": title, "model": model, "questions": questions}
+        thread = threading.Thread(
+            target=_run_quiz_generation_job, args=(job_id, topic, model, count), daemon=True,
+        )
+        thread.start()
+        return {"job_id": job_id}
+
+    @app.route("/admin/student/<int:user_id>/quiz/generate/status/<job_id>")
+    @login_required
+    @admin_required
+    def admin_student_quiz_generate_status(user_id, job_id):
+        User.query.filter_by(id=user_id, is_admin=False).first_or_404()
+        with _quiz_jobs_lock:
+            job = _quiz_jobs.get(job_id)
+        if not job:
+            return {"status": "error", "error": "That generation job could not be found (it may have expired)."}, 404
+        return job
 
     @app.route("/admin/student/<int:user_id>/quiz/assign", methods=["POST"])
     @login_required

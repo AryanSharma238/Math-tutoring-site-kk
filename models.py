@@ -109,6 +109,7 @@ class Quiz(db.Model):
     model_used = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(dt_timezone.utc))
     completed_at = db.Column(db.DateTime, nullable=True)
+    answers_json = db.Column(db.Text, nullable=True)
 
     @property
     def question_count(self):

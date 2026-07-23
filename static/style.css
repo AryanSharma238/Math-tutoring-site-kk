@@ -695,6 +695,27 @@ img.curriculum-viewer {
   background: rgba(239, 68, 68, 0.12);
 }
 
+.choice-btn.selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.submit-answer-btn {
+  margin-top: 0.75rem;
+  background: var(--accent);
+  color: var(--accent-foreground, white);
+  border: none;
+  border-radius: 8px;
+  padding: 0.6rem 1.2rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.submit-answer-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .choice-label { font-weight: 700; min-width: 1.1rem; }
 
 .quiz-feedback {

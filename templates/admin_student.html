@@ -138,15 +138,47 @@
 
   let pendingQuiz = null;
 
+  async function safeJson(resp) {
+    const text = await resp.text();
+    try {
+      return JSON.parse(text);
+    } catch {
+      throw new Error("Server returned an unexpected response (not JSON) -- likely a temporary server or network hiccup. Please try again.");
+    }
+  }
+
+  function pollJob(jobId) {
+    return new Promise((resolve, reject) => {
+      const check = async () => {
+        let data;
+        try {
+          const resp = await fetch(`/admin/student/{{ student.id }}/quiz/generate/status/${jobId}`);
+          data = await safeJson(resp);
+        } catch (err) {
+          reject(err);
+          return;
+        }
+        if (data.status === "pending") {
+          setTimeout(check, 2500);
+        } else if (data.status === "done") {
+          resolve(data.result);
+        } else {
+          reject(new Error(data.error || "Quiz generation failed."));
+        }
+      };
+      check();
+    });
+  }
+
   quizForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     generateBtn.disabled = true;
-    statusEl.textContent = "Loading... generating quiz, this can take up to a minute.";
+    statusEl.textContent = "Loading... generating quiz, this can take a couple of minutes for larger quizzes.";
     previewWrap.hidden = true;
 
     const formData = new FormData(quizForm);
     try {
-      const resp = await fetch("{{ url_for('admin_student_quiz_preview', user_id=student.id) }}", {
+      const startResp = await fetch("{{ url_for('admin_student_quiz_generate_start', user_id=student.id) }}", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -155,18 +187,19 @@
           model: formData.get("model"),
         }),
       });
-      const data = await resp.json();
-      if (!resp.ok || data.error) {
-        statusEl.textContent = data.error || "Quiz generation failed.";
+      const startData = await safeJson(startResp);
+      if (!startResp.ok || !startData.job_id) {
+        statusEl.textContent = startData.error || "Could not start quiz generation.";
         return;
       }
 
-      pendingQuiz = data;
-      statusEl.textContent = `Generated ${data.questions.length} question(s). Review below.`;
-      renderQuizQuestions(data.questions, previewEl);
+      const result = await pollJob(startData.job_id);
+      pendingQuiz = result;
+      statusEl.textContent = `Generated ${result.questions.length} question(s). Review below.`;
+      renderQuizQuestions(result.questions, previewEl);
       previewWrap.hidden = false;
     } catch (err) {
-      statusEl.textContent = `Error: ${err.message}`;
+      statusEl.textContent = err.message;
     } finally {
       generateBtn.disabled = false;
     }
@@ -183,7 +216,7 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(pendingQuiz),
       });
-      const data = await resp.json();
+      const data = await safeJson(resp);
       if (!resp.ok || data.error) {
         statusEl.textContent = data.error || "Could not assign quiz.";
         return;
