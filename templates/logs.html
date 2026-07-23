@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Logs & To-do{% endblock %}
+{% block body %}
+<div class="portal">
+  {% include "_student_sidebar.html" %}
+  <main class="content">
+    <a href="{{ url_for('settings') }}" class="back-link">&larr; Back to settings</a>
+    <h1>Logs &amp; To-do</h1>
+
+    <section class="card">
+      <h3>To-do list</h3>
+      <p class="muted small">Anyone can add or check off an item. Checking one off removes it.</p>
+      <form method="POST" action="{{ url_for('add_todo') }}" class="form-row">
+        <input type="text" name="text" placeholder="Add a task..." required>
+        <button type="submit">Add</button>
+      </form>
+      <ul class="todo-list">
+        {% for t in todos %}
+          <li class="todo-item">
+            <form method="POST" action="{{ url_for('complete_todo', todo_id=t.id) }}" class="inline-form">
+              <button type="submit" class="todo-check" title="Mark done and remove">✓</button>
+            </form>
+            <span>{{ t.text }}</span>
+          </li>
+        {% else %}
+          <li class="muted small">Nothing on the list.</li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <section class="card">
+      <h3>Recent GitHub commits</h3>
+      <p class="muted small"><a href="https://github.com/{{ repo }}" target="_blank" rel="noreferrer">{{ repo }}</a></p>
+      {% if error %}
+        <p class="muted">{{ error }}</p>
+      {% elif commits %}
+        <ul class="log-list">
+          {% for c in commits %}
+            <li class="log-item">
+              <span class="log-date">{{ c.date[:10] }}</span>
+              <a href="{{ c.url }}" target="_blank" rel="noreferrer" class="log-message">{{ c.message }}</a>
+              <span class="log-sha muted small">{{ c.sha }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="muted">No commits found.</p>
+      {% endif %}
+    </section>
+  </main>
+</div>
+{% endblock %}

@@ -12,7 +12,9 @@ from flask import (
 from io import BytesIO
 from supabase import create_client
 
-from models import ClassSession, CurriculumFile, Quiz, StudentProfile, User, db
+from models import ClassSession, CurriculumFile, Quiz, StudentProfile, TodoItem, User, db
+
+GITHUB_REPO = "AryanSharma238/Math-tutoring-site-kk"
 
 
 def _ensure_sslmode(db_url):
@@ -296,6 +298,54 @@ def register_routes(app):
     def settings():
         user = current_user()
         return render_template("settings.html", user=user, active="settings")
+
+    @app.route("/logs")
+    @login_required
+    def logs():
+        user = current_user()
+        commits = []
+        error = None
+        try:
+            resp = requests.get(
+                f"https://api.github.com/repos/{GITHUB_REPO}/commits",
+                params={"per_page": 30},
+                headers={"Accept": "application/vnd.github+json"},
+                timeout=10,
+            )
+            resp.raise_for_status()
+            for c in resp.json():
+                commits.append({
+                    "sha": c["sha"][:7],
+                    "message": c["commit"]["message"].split("\n")[0],
+                    "author": c["commit"]["author"]["name"],
+                    "date": c["commit"]["author"]["date"],
+                    "url": c["html_url"],
+                })
+        except Exception as exc:
+            error = f"Could not load GitHub commits: {exc}"
+
+        todos = TodoItem.query.order_by(TodoItem.created_at).all()
+        return render_template(
+            "logs.html", user=user, active="settings",
+            commits=commits, error=error, todos=todos, repo=GITHUB_REPO,
+        )
+
+    @app.route("/logs/todo/add", methods=["POST"])
+    @login_required
+    def add_todo():
+        text = request.form.get("text", "").strip()
+        if text:
+            db.session.add(TodoItem(text=text[:500]))
+            db.session.commit()
+        return redirect(url_for("logs"))
+
+    @app.route("/logs/todo/<int:todo_id>/complete", methods=["POST"])
+    @login_required
+    def complete_todo(todo_id):
+        item = TodoItem.query.get_or_404(todo_id)
+        db.session.delete(item)
+        db.session.commit()
+        return redirect(url_for("logs"))
 
     @app.route("/account/delete", methods=["POST"])
     @login_required

@@ -5,6 +5,14 @@ from flask_sqlalchemy import SQLAlchemy
 db = SQLAlchemy()
 
 
+class TodoItem(db.Model):
+    __tablename__ = "todo_items"
+
+    id = db.Column(db.Integer, primary_key=True)
+    text = db.Column(db.String(500), nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(dt_timezone.utc))
+
+
 class User(db.Model):
     __tablename__ = "users"
 

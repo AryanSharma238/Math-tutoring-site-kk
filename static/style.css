@@ -572,6 +572,88 @@ img.curriculum-viewer {
   font-size: 0.9rem;
 }
 
+.btn-outline-link {
+  display: inline-flex;
+  margin-top: 0.75rem;
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.todo-list, .log-list {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.todo-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.todo-check {
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--muted);
+  padding: 0;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.todo-check:hover {
+  background: var(--accent);
+  color: var(--accent-foreground, white);
+  border-color: var(--accent);
+}
+
+.log-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.88rem;
+}
+
+.log-item:last-child {
+  border-bottom: none;
+}
+
+.log-date {
+  color: var(--muted);
+  font-size: 0.78rem;
+  flex-shrink: 0;
+  width: 5.5rem;
+}
+
+.log-message {
+  flex: 1;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.log-message:hover {
+  color: var(--accent);
+}
+
+.log-sha {
+  font-family: monospace;
+  flex-shrink: 0;
+}
+
 /* Quiz choices (reused pattern) */
 .quiz-question {
   background: var(--card);
