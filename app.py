@@ -60,10 +60,11 @@ COMMON_TIMEZONES = [
 ]
 
 FREE_MODELS = [
-    "meta-llama/llama-3.3-70b-instruct:free",
-    "nvidia/nemotron-3-ultra-550b-a55b:free",
-    "poolside/laguna-s-2.1:free",
+    "openai/gpt-oss-20b:free",
+    "nvidia/nemotron-3-nano-30b-a3b:free",
+    "google/gemma-4-31b-it:free",
     "cohere/north-mini-code:free",
+    "inclusionai/ling-3.0-tiny:free",
 ]
 
 QUIZ_SYSTEM_PROMPT = """You are a math problem generator. Given a topic/prompt, generate exactly {count} distinct multiple-choice math problems matching it, plus a short descriptive title for the quiz as a whole.
@@ -156,6 +157,11 @@ def _generate_quiz(topic, model, count):
     except requests.exceptions.RequestException as exc:
         raise RuntimeError(f"Could not reach OpenRouter: {exc}")
 
+    if resp.status_code == 404:
+        raise RuntimeError(
+            f"The model \"{model}\" doesn't exist on OpenRouter anymore (it may have been retired). "
+            "Please pick a different model from the dropdown."
+        )
     if not resp.ok:
         raise RuntimeError(f"OpenRouter returned an error (HTTP {resp.status_code}). Try again in a moment.")
 
@@ -383,7 +389,6 @@ def register_routes(app):
             return render_template("waiting.html", user=user)
 
         teacher_quizzes = [q for q in profile.quizzes if not q.is_student_created]
-        own_quizzes = [q for q in profile.quizzes if q.is_student_created]
 
         # "Recently assigned" only makes sense for something still outstanding --
         # once it's completed it belongs in the Completed list instead, not here too.
@@ -396,8 +401,24 @@ def register_routes(app):
         return render_template(
             "quizzes.html", user=user, profile=profile,
             recently_assigned=recently_assigned, todo=todo, completed=completed,
-            own_quizzes=own_quizzes, models=FREE_MODELS,
             active="quizzes",
+        )
+
+    @app.route("/my-quizzes")
+    @login_required
+    def own_quizzes_page():
+        user = current_user()
+        if user.is_admin:
+            return redirect(url_for("dashboard"))
+        profile = user.profile
+        if not profile or not profile.setup_complete:
+            return render_template("waiting.html", user=user)
+
+        own_quizzes = [q for q in profile.quizzes if q.is_student_created]
+        return render_template(
+            "own_quizzes.html", user=user, profile=profile,
+            own_quizzes=own_quizzes, models=FREE_MODELS,
+            active="my-quizzes",
         )
 
     @app.route("/quizzes/<int:quiz_id>")

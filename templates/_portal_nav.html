@@ -1,4 +1,5 @@
 <nav class="tabs">
   <a href="{{ url_for('dashboard') }}" class="{{ 'active' if active == 'dashboard' else '' }}">Dashboard</a>
   <a href="{{ url_for('quizzes') }}" class="{{ 'active' if active == 'quizzes' else '' }}">Quizzes</a>
+  <a href="{{ url_for('own_quizzes_page') }}" class="{{ 'active' if active == 'my-quizzes' else '' }}">My Quizzes</a>
 </nav>
