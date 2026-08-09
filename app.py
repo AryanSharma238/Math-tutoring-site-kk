@@ -59,13 +59,19 @@ COMMON_TIMEZONES = [
     "Australia/Sydney", "Pacific/Auckland", "UTC",
 ]
 
+# Each entry: (value sent by the <select>, provider, human label).
+# value = "{provider}|{model id}" -- parsed in _generate_quiz_attempt to pick the right API.
 FREE_MODELS = [
-    "openai/gpt-oss-20b:free",
-    "nvidia/nemotron-3-nano-30b-a3b:free",
-    "google/gemma-4-31b-it:free",
-    "cohere/north-mini-code:free",
-    "inclusionai/ling-3.0-tiny:free",
+    ("groq|openai/gpt-oss-20b", "groq", "Groq: GPT-OSS 20B (fastest, free)"),
+    ("groq|llama-3.3-70b-versatile", "groq", "Groq: Llama 3.3 70B (free)"),
+    ("groq|llama-3.1-8b-instant", "groq", "Groq: Llama 3.1 8B Instant (free)"),
+    ("openrouter|openai/gpt-oss-20b:free", "openrouter", "OpenRouter: GPT-OSS 20B (free)"),
+    ("openrouter|nvidia/nemotron-3-nano-30b-a3b:free", "openrouter", "OpenRouter: Nemotron Nano 30B (free)"),
+    ("openrouter|google/gemma-4-31b-it:free", "openrouter", "OpenRouter: Gemma 4 31B (free)"),
+    ("openrouter|cohere/north-mini-code:free", "openrouter", "OpenRouter: Cohere North Mini (free)"),
+    ("openrouter|inclusionai/ling-3.0-tiny:free", "openrouter", "OpenRouter: Ling 3.0 Tiny (free)"),
 ]
+DEFAULT_MODEL = FREE_MODELS[0][0]
 
 QUIZ_SYSTEM_PROMPT = """You are a math problem generator. Given a topic/prompt, generate exactly {count} distinct multiple-choice math problems matching it, plus a short descriptive title for the quiz as a whole.
 
@@ -134,10 +140,36 @@ def _validate_quiz_payload(parsed, topic):
     return title, parsed["questions"]
 
 
-def _generate_quiz_attempt(topic, model, count, strict_reminder=False):
-    api_key = os.environ.get("OPENROUTER_API_KEY")
+_PROVIDER_CONFIG = {
+    "groq": {
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "env_var": "GROQ_API_KEY",
+        "display_name": "Groq",
+        "supports_json_mode": True,
+    },
+    "openrouter": {
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "env_var": "OPENROUTER_API_KEY",
+        "display_name": "OpenRouter",
+        "supports_json_mode": False,
+    },
+}
+
+
+def _generate_quiz_attempt(topic, model_value, count, strict_reminder=False):
+    if "|" in model_value:
+        provider_key, model = model_value.split("|", 1)
+    else:
+        # Back-compat: a bare OpenRouter model id with no provider prefix.
+        provider_key, model = "openrouter", model_value
+
+    provider = _PROVIDER_CONFIG.get(provider_key)
+    if not provider:
+        raise RuntimeError(f"Unknown model provider \"{provider_key}\".")
+
+    api_key = os.environ.get(provider["env_var"])
     if not api_key:
-        raise RuntimeError("Server is missing OPENROUTER_API_KEY.")
+        raise RuntimeError(f"Server is missing {provider['env_var']} -- ask the admin to set it in Render.")
 
     system_prompt = QUIZ_SYSTEM_PROMPT.format(count=count)
     if strict_reminder:
@@ -147,47 +179,51 @@ def _generate_quiz_attempt(topic, model, count, strict_reminder=False):
             "\"correct\": true and all others \"correct\": false -- not zero, not two or more."
         )
 
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": topic or "general math problems, mixed topics"},
+        ],
+    }
+    if provider["supports_json_mode"]:
+        payload["response_format"] = {"type": "json_object"}
+
     try:
         resp = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
+            provider["url"],
             headers={
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
             },
-            json={
-                "model": model,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": topic or "general math problems, mixed topics"},
-                ],
-            },
+            json=payload,
             timeout=280,
         )
     except requests.exceptions.Timeout:
         raise RuntimeError("The AI model took too long to respond. Try again, or pick a faster model / fewer questions.")
     except requests.exceptions.RequestException as exc:
-        raise RuntimeError(f"Could not reach OpenRouter: {exc}")
+        raise RuntimeError(f"Could not reach {provider['display_name']}: {exc}")
 
     if resp.status_code == 404:
         raise RuntimeError(
-            f"The model \"{model}\" doesn't exist on OpenRouter anymore (it may have been retired). "
+            f"The model \"{model}\" doesn't exist on {provider['display_name']} anymore (it may have been retired). "
             "Please pick a different model from the dropdown."
         )
     if not resp.ok:
-        raise RuntimeError(f"OpenRouter returned an error (HTTP {resp.status_code}). Try again in a moment.")
+        raise RuntimeError(f"{provider['display_name']} returned an error (HTTP {resp.status_code}). Try again in a moment.")
 
     try:
         body = resp.json()
     except ValueError:
-        raise RuntimeError("OpenRouter returned an unexpected (non-JSON) response. Try again.")
+        raise RuntimeError(f"{provider['display_name']} returned an unexpected (non-JSON) response. Try again.")
 
     if not body.get("choices"):
-        raise RuntimeError("OpenRouter's response didn't include any content -- the model may be overloaded. Try again.")
+        raise RuntimeError(f"{provider['display_name']}'s response didn't include any content -- the model may be overloaded. Try again.")
 
     raw = body["choices"][0].get("message", {}).get("content") or ""
     parsed = _extract_json_object(raw)
     title, questions = _validate_quiz_payload(parsed, topic)
-    return {"title": title, "model": model, "questions": questions}
+    return {"title": title, "model": model_value, "questions": questions}
 
 
 # Smaller/faster free models occasionally don't follow the strict JSON schema (e.g. a
@@ -694,7 +730,7 @@ def register_routes(app):
         User.query.filter_by(id=user_id, is_admin=False).first_or_404()
         data = request.get_json(silent=True) or {}
         topic = (data.get("topic") or "").strip()
-        model = data.get("model") or FREE_MODELS[0]
+        model = data.get("model") or DEFAULT_MODEL
         try:
             count = max(min(int(data.get("count", 5)), 25), 1)
         except (ValueError, TypeError):
@@ -754,7 +790,7 @@ def register_routes(app):
             abort(403)
         data = request.get_json(silent=True) or {}
         topic = (data.get("topic") or "").strip()
-        model = data.get("model") or FREE_MODELS[0]
+        model = data.get("model") or DEFAULT_MODEL
         try:
             count = max(min(int(data.get("count", 5)), 25), 1)
         except (ValueError, TypeError):
@@ -801,7 +837,7 @@ def register_routes(app):
         student = User.query.filter_by(id=user_id, is_admin=False).first_or_404()
         data = request.get_json(silent=True) or {}
         title = (data.get("title") or "Untitled quiz")[:100]
-        model = data.get("model") or FREE_MODELS[0]
+        model = data.get("model") or DEFAULT_MODEL
         questions = data.get("questions")
 
         if not isinstance(questions, list) or not questions:

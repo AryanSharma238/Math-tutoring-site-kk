@@ -95,7 +95,7 @@
         </label>
         <label>Model
           <select name="model">
-            {% for m in models %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
+            {% for value, provider, label in models %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
           </select>
         </label>
         <button type="submit" id="generateQuizBtn">Generate quiz</button>
