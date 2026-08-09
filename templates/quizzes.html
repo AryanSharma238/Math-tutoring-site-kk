@@ -6,6 +6,8 @@
   <main class="content">
     <h1>Quizzes</h1>
 
+    <h2 class="quiz-group-heading">Assigned by your teacher</h2>
+
     {% if recently_assigned %}
       <h3 class="quiz-section-label">Recently assigned</h3>
       <div class="quiz-list">
@@ -35,6 +37,104 @@
     {% else %}
       <p class="muted">No completed quizzes yet.</p>
     {% endif %}
+
+    <h2 class="quiz-group-heading">My own quizzes</h2>
+    <p class="muted small">Generate practice quizzes for yourself. These are separate from anything your teacher assigns.</p>
+
+    <section class="card">
+      <form id="ownQuizForm" class="form-grid">
+        <label>Topic
+          <textarea name="topic" rows="2" placeholder="e.g. 10 practice problems on the unit circle"></textarea>
+        </label>
+        <label>How many questions
+          <input type="number" name="count" min="1" max="25" value="5">
+        </label>
+        <label>Model
+          <select name="model">
+            {% for m in models %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
+          </select>
+        </label>
+        <button type="submit" id="ownQuizBtn">Generate quiz</button>
+      </form>
+      <p class="quiz-status" id="ownQuizStatus"></p>
+    </section>
+
+    <div class="quiz-list" id="ownQuizList">
+      {% for q in own_quizzes %}
+        {% include "_quiz_row.html" with context %}
+      {% endfor %}
+    </div>
+    {% if not own_quizzes %}
+      <p class="muted" id="ownQuizEmpty">You haven't created any quizzes yet.</p>
+    {% endif %}
   </main>
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+  const ownForm = document.getElementById("ownQuizForm");
+  const ownBtn = document.getElementById("ownQuizBtn");
+  const ownStatus = document.getElementById("ownQuizStatus");
+
+  async function safeJsonOwn(resp) {
+    const text = await resp.text();
+    try { return JSON.parse(text); }
+    catch { throw new Error("Server returned an unexpected response. Please try again."); }
+  }
+
+  function pollOwnJob(jobId) {
+    return new Promise((resolve, reject) => {
+      const check = async () => {
+        let data;
+        try {
+          const resp = await fetch(`/quizzes/create/status/${jobId}`);
+          data = await safeJsonOwn(resp);
+        } catch (err) {
+          reject(err);
+          return;
+        }
+        if (data.status === "pending") {
+          setTimeout(check, 2500);
+        } else if (data.status === "done") {
+          resolve(data.result);
+        } else {
+          reject(new Error(data.error || "Quiz generation failed."));
+        }
+      };
+      check();
+    });
+  }
+
+  ownForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    ownBtn.disabled = true;
+    ownStatus.textContent = "Loading... generating your quiz, this can take a couple of minutes.";
+
+    const formData = new FormData(ownForm);
+    try {
+      const startResp = await fetch("/quizzes/create/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topic: formData.get("topic"),
+          count: formData.get("count"),
+          model: formData.get("model"),
+        }),
+      });
+      const startData = await safeJsonOwn(startResp);
+      if (!startResp.ok || !startData.job_id) {
+        ownStatus.textContent = startData.error || "Could not start quiz generation.";
+        return;
+      }
+
+      const result = await pollOwnJob(startData.job_id);
+      ownStatus.textContent = `Created "${result.title}".`;
+      setTimeout(() => window.location.reload(), 600);
+    } catch (err) {
+      ownStatus.textContent = err.message;
+    } finally {
+      ownBtn.disabled = false;
+    }
+  });
+</script>
 {% endblock %}

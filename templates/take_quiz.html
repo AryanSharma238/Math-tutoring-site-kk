@@ -7,8 +7,47 @@
     <a href="{{ url_for('quizzes') }}" class="back-link">&larr; Back to quizzes</a>
     <h1>{{ quiz.title }}</h1>
     {% if quiz.completed_at %}<p class="muted small">Completed {{ quiz.completed_at.strftime('%b %d, %Y') }}</p>{% endif %}
+
+    <div class="quiz-tools">
+      <button type="button" id="openCalcBtn" class="tool-btn">🧮 Calculator</button>
+      <button type="button" id="openDrawBtn" class="tool-btn">✏️ Draw</button>
+    </div>
+
     <section id="quizContainer"></section>
   </main>
+</div>
+
+<div class="calc-window" id="calcWindow" hidden>
+  <div class="calc-header" id="calcHeader">
+    <div class="calc-tabs">
+      <button type="button" class="calc-tab active" data-tab="graphing">Desmos Graphing</button>
+      <button type="button" class="calc-tab" data-tab="scientific">Scientific (TI-84 style)</button>
+    </div>
+    <button type="button" class="calc-close" id="closeCalcBtn">&times;</button>
+  </div>
+  <div class="calc-body">
+    <iframe id="calcFrameGraphing" src="https://www.desmos.com/calculator" class="calc-frame active"></iframe>
+    <iframe id="calcFrameScientific" src="https://www.desmos.com/scientific" class="calc-frame"></iframe>
+  </div>
+  <div class="calc-resize-handle" id="calcResizeHandle"></div>
+</div>
+
+<div class="draw-overlay" id="drawOverlay" hidden>
+  <div class="draw-toolbar">
+    <button type="button" class="draw-tool active" data-tool="pen" title="Pen">✒️ Pen</button>
+    <button type="button" class="draw-tool" data-tool="highlighter" title="Highlighter">🖍️ Highlighter</button>
+    <button type="button" class="draw-tool" data-tool="marker" title="Marker">🖊️ Marker</button>
+    <button type="button" class="draw-tool" data-tool="eraser" title="Eraser">🧹 Eraser</button>
+    <span class="draw-colors">
+      <button type="button" class="draw-color active" data-color="#1a1a2e" style="background:#1a1a2e"></button>
+      <button type="button" class="draw-color" data-color="#dc2626" style="background:#dc2626"></button>
+      <button type="button" class="draw-color" data-color="#2563eb" style="background:#2563eb"></button>
+      <button type="button" class="draw-color" data-color="#16a34a" style="background:#16a34a"></button>
+      <button type="button" class="draw-color" data-color="#f59e0b" style="background:#f59e0b"></button>
+    </span>
+    <button type="button" class="tool-btn" id="closeDrawBtn">Close &amp; clear</button>
+  </div>
+  <canvas id="drawCanvas"></canvas>
 </div>
 {% endblock %}
 {% block scripts %}
@@ -136,5 +175,136 @@
   });
 
   render();
+
+  // ---------- Calculator window (movable + resizable, Desmos graphing/scientific tabs) ----------
+  (function () {
+    const win = document.getElementById("calcWindow");
+    const header = document.getElementById("calcHeader");
+    const openBtn = document.getElementById("openCalcBtn");
+    const closeBtn = document.getElementById("closeCalcBtn");
+    const tabs = win.querySelectorAll(".calc-tab");
+    const frames = {
+      graphing: document.getElementById("calcFrameGraphing"),
+      scientific: document.getElementById("calcFrameScientific"),
+    };
+
+    openBtn.addEventListener("click", () => { win.hidden = false; });
+    closeBtn.addEventListener("click", () => { win.hidden = true; });
+
+    tabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        tabs.forEach((t) => t.classList.remove("active"));
+        tab.classList.add("active");
+        Object.values(frames).forEach((f) => f.classList.remove("active"));
+        frames[tab.dataset.tab].classList.add("active");
+      });
+    });
+
+    // Drag by header
+    let dragging = false, startX = 0, startY = 0, startLeft = 0, startTop = 0;
+    header.addEventListener("mousedown", (e) => {
+      if (e.target.closest(".calc-tab") || e.target.closest(".calc-close")) return;
+      dragging = true;
+      const rect = win.getBoundingClientRect();
+      startX = e.clientX; startY = e.clientY;
+      startLeft = rect.left; startTop = rect.top;
+      win.style.right = "auto";
+      win.style.bottom = "auto";
+      e.preventDefault();
+    });
+    document.addEventListener("mousemove", (e) => {
+      if (!dragging) return;
+      win.style.left = `${startLeft + (e.clientX - startX)}px`;
+      win.style.top = `${startTop + (e.clientY - startY)}px`;
+    });
+    document.addEventListener("mouseup", () => { dragging = false; });
+  })();
+
+  // ---------- Drawing tool overlay ----------
+  (function () {
+    const overlay = document.getElementById("drawOverlay");
+    const canvas = document.getElementById("drawCanvas");
+    const ctx = canvas.getContext("2d");
+    const openBtn = document.getElementById("openDrawBtn");
+    const closeBtn = document.getElementById("closeDrawBtn");
+    const toolBtns = overlay.querySelectorAll(".draw-tool");
+    const colorBtns = overlay.querySelectorAll(".draw-color");
+
+    let tool = "pen";
+    let color = "#1a1a2e";
+    let drawing = false;
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+
+    function clearCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    openBtn.addEventListener("click", () => {
+      overlay.hidden = false;
+      resizeCanvas();
+    });
+
+    closeBtn.addEventListener("click", () => {
+      clearCanvas();
+      overlay.hidden = true;
+    });
+
+    window.addEventListener("resize", () => {
+      if (!overlay.hidden) resizeCanvas();
+    });
+
+    toolBtns.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        toolBtns.forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        tool = btn.dataset.tool;
+      });
+    });
+
+    colorBtns.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        colorBtns.forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        color = btn.dataset.color;
+      });
+    });
+
+    function strokeStyleFor(tool) {
+      if (tool === "highlighter") return { width: 18, alpha: 0.35 };
+      if (tool === "marker") return { width: 10, alpha: 0.85 };
+      if (tool === "eraser") return { width: 28, alpha: 1 };
+      return { width: 3, alpha: 1 }; // pen
+    }
+
+    let lastX = 0, lastY = 0;
+
+    canvas.addEventListener("pointerdown", (e) => {
+      drawing = true;
+      lastX = e.clientX;
+      lastY = e.clientY;
+    });
+    canvas.addEventListener("pointerup", () => { drawing = false; });
+    canvas.addEventListener("pointerleave", () => { drawing = false; });
+    canvas.addEventListener("pointermove", (e) => {
+      if (!drawing) return;
+      const style = strokeStyleFor(tool);
+      ctx.globalCompositeOperation = tool === "eraser" ? "destination-out" : "source-over";
+      ctx.globalAlpha = style.alpha;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = style.width;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.beginPath();
+      ctx.moveTo(lastX, lastY);
+      ctx.lineTo(e.clientX, e.clientY);
+      ctx.stroke();
+      lastX = e.clientX;
+      lastY = e.clientY;
+    });
+  })();
 </script>
 {% endblock %}

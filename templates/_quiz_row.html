@@ -1,5 +1,12 @@
-<a href="{{ url_for('take_quiz', quiz_id=q.id) }}" class="quiz-row {{ 'completed' if q.completed_at else '' }}">
-  <span class="quiz-row-date">{{ (q.completed_at or q.created_at).strftime('%b %d, %Y') }}</span>
-  <span class="quiz-row-count">{{ q.question_count }} question{{ 's' if q.question_count != 1 else '' }}</span>
-  <span class="quiz-row-title">{{ q.title }}</span>
-</a>
+<div class="quiz-row-wrap">
+  <a href="{{ url_for('take_quiz', quiz_id=q.id) }}" class="quiz-row {{ 'completed' if q.completed_at else '' }}">
+    <span class="quiz-row-date">{{ (q.completed_at or q.created_at).strftime('%b %d, %Y') }}</span>
+    <span class="quiz-row-count">{{ q.question_count }} question{{ 's' if q.question_count != 1 else '' }}</span>
+    <span class="quiz-row-title">{{ q.title }}</span>
+  </a>
+  {% if q.is_student_created %}
+    <form method="POST" action="{{ url_for('delete_own_quiz', quiz_id=q.id) }}" class="inline-form" onsubmit="return confirm('Delete this quiz?');">
+      <button type="submit" class="link-btn">remove</button>
+    </form>
+  {% endif %}
+</div>

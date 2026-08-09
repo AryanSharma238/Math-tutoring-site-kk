@@ -60,6 +60,7 @@ COMMON_TIMEZONES = [
 ]
 
 FREE_MODELS = [
+    "meta-llama/llama-3.3-70b-instruct:free",
     "nvidia/nemotron-3-ultra-550b-a55b:free",
     "poolside/laguna-s-2.1:free",
     "cohere/north-mini-code:free",
@@ -192,6 +193,7 @@ _PENDING_COLUMN_MIGRATIONS = [
     "ALTER TABLE quizzes ADD COLUMN completed_at TIMESTAMP",
     "ALTER TABLE quizzes ADD COLUMN answers_json TEXT",
     "ALTER TABLE student_profiles ADD COLUMN classes_left INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE quizzes ADD COLUMN is_student_created BOOLEAN NOT NULL DEFAULT false",
 ]
 
 
@@ -380,15 +382,21 @@ def register_routes(app):
         if not profile or not profile.setup_complete:
             return render_template("waiting.html", user=user)
 
-        all_quizzes = profile.quizzes
-        recently_assigned = all_quizzes[0] if all_quizzes else None
-        todo = [q for q in all_quizzes if not q.completed_at and q.id != (recently_assigned.id if recently_assigned else None)]
+        teacher_quizzes = [q for q in profile.quizzes if not q.is_student_created]
+        own_quizzes = [q for q in profile.quizzes if q.is_student_created]
+
+        # "Recently assigned" only makes sense for something still outstanding --
+        # once it's completed it belongs in the Completed list instead, not here too.
+        not_done = [q for q in teacher_quizzes if not q.completed_at]
+        recently_assigned = not_done[0] if not_done else None
+        todo = [q for q in not_done if q.id != (recently_assigned.id if recently_assigned else None)]
         completed = sorted(
-            (q for q in all_quizzes if q.completed_at), key=lambda q: q.completed_at, reverse=True
+            (q for q in teacher_quizzes if q.completed_at), key=lambda q: q.completed_at, reverse=True
         )
         return render_template(
             "quizzes.html", user=user, profile=profile,
             recently_assigned=recently_assigned, todo=todo, completed=completed,
+            own_quizzes=own_quizzes, models=FREE_MODELS,
             active="quizzes",
         )
 
@@ -659,6 +667,76 @@ def register_routes(app):
         if not job:
             return {"status": "error", "error": "That generation job could not be found (it may have expired)."}, 404
         return job
+
+    # --- Student: create their own quiz (separate from teacher-assigned ones) ---
+
+    def _run_own_quiz_generation_job(job_id, profile_id, topic, model, count):
+        try:
+            result = _generate_quiz(topic, model, count)
+            with app.app_context():
+                quiz = Quiz(
+                    profile_id=profile_id,
+                    title=result["title"],
+                    questions_json=json.dumps(result["questions"]),
+                    model_used=model,
+                    is_student_created=True,
+                )
+                db.session.add(quiz)
+                db.session.commit()
+                quiz_id = quiz.id
+            with _quiz_jobs_lock:
+                _quiz_jobs[job_id] = {"status": "done", "result": {"quiz_id": quiz_id, "title": result["title"]}}
+        except Exception as exc:
+            with _quiz_jobs_lock:
+                _quiz_jobs[job_id] = {"status": "error", "error": str(exc)}
+
+    @app.route("/quizzes/create/start", methods=["POST"])
+    @login_required
+    def own_quiz_generate_start():
+        user = current_user()
+        if user.is_admin or not user.profile:
+            abort(403)
+        data = request.get_json(silent=True) or {}
+        topic = (data.get("topic") or "").strip()
+        model = data.get("model") or FREE_MODELS[0]
+        try:
+            count = max(min(int(data.get("count", 5)), 25), 1)
+        except (ValueError, TypeError):
+            count = 5
+
+        if not os.environ.get("OPENROUTER_API_KEY"):
+            return {"error": "Server is missing OPENROUTER_API_KEY -- ask your teacher to set it up."}, 400
+
+        job_id = uuid.uuid4().hex
+        with _quiz_jobs_lock:
+            _quiz_jobs[job_id] = {"status": "pending"}
+
+        thread = threading.Thread(
+            target=_run_own_quiz_generation_job,
+            args=(job_id, user.profile.id, topic, model, count), daemon=True,
+        )
+        thread.start()
+        return {"job_id": job_id}
+
+    @app.route("/quizzes/create/status/<job_id>")
+    @login_required
+    def own_quiz_generate_status(job_id):
+        with _quiz_jobs_lock:
+            job = _quiz_jobs.get(job_id)
+        if not job:
+            return {"status": "error", "error": "That generation job could not be found (it may have expired)."}, 404
+        return job
+
+    @app.route("/quizzes/<int:quiz_id>/delete", methods=["POST"])
+    @login_required
+    def delete_own_quiz(quiz_id):
+        user = current_user()
+        quiz = Quiz.query.filter_by(id=quiz_id, is_student_created=True).first_or_404()
+        if user.is_admin or not user.profile or quiz.profile_id != user.profile.id:
+            abort(403)
+        db.session.delete(quiz)
+        db.session.commit()
+        return redirect(url_for("quizzes"))
 
     @app.route("/admin/student/<int:user_id>/quiz/assign", methods=["POST"])
     @login_required
