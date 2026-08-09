@@ -60,22 +60,25 @@ COMMON_TIMEZONES = [
 ]
 
 FREE_MODELS = [
-    "openai/gpt-oss-20b:free",
+    "inclusionai/ling-3.0-tiny:free",
     "nvidia/nemotron-3-nano-30b-a3b:free",
+    "openai/gpt-oss-20b:free",
     "google/gemma-4-31b-it:free",
     "cohere/north-mini-code:free",
-    "inclusionai/ling-3.0-tiny:free",
 ]
 
 QUIZ_SYSTEM_PROMPT = """You are a math problem generator. Given a topic/prompt, generate exactly {count} distinct multiple-choice math problems matching it, plus a short descriptive title for the quiz as a whole.
 
 Each question must have exactly 4 answer choices, exactly one of which is correct.
-Each question must include a detailed step-by-step solution.
-Each incorrect choice must include an explanation of the specific mistake or misconception that leads to it.
+Each question must include a step-by-step solution.
+Each incorrect choice must include a brief explanation of the specific mistake or misconception that leads to it.
 Verify all numbers and answer choices are mathematically correct and consistent before outputting.
+Be concise everywhere: solutions should be the shortest sequence of steps that fully justifies the answer (typically 2-5 short steps, not an exhaustive essay), and each wrong-choice explanation should be one short sentence. Do not pad with restated problem text, filler phrases, or redundant recaps. Shorter output generates faster, so favor brevity without sacrificing correctness.
 
 The "question" field must contain ONLY the question text -- never embed the answer choices inside it.
 The "title" field should be a short, specific, human-readable name for the quiz (4-8 words), based on the topic -- e.g. "Trigonometric Identities Practice" or "Quadratic Formula Word Problems". Do not just repeat the raw topic text verbatim.
+
+Formatting math: every mathematical expression, symbol, equation, fraction, exponent, root, or notation anywhere in "question", "choices[].text", "choices[].explanation", and "solution" must be written in LaTeX, wrapped in single dollar signs for inline math (e.g. "$x^2 + 3x - 4 = 0$", "$\\frac{{1}}{{2}}$", "$\\sqrt{{16}}$", "$\\sin(\\theta)$") or double dollar signs for standalone/display equations (e.g. "$$\\int_0^1 x^2\\,dx$$"). Never write math as plain text or ASCII approximations (no "x^2" outside of LaTeX, no "sqrt(x)", no "1/2" as bare text) -- always use proper LaTeX so it can be rendered. Plain prose sentences around the math do not need LaTeX, only the mathematical notation itself.
 Do not include any internal reasoning, revisions, second-guessing, notes, or commentary anywhere in the output, including inside string fields. Do not use markdown code fences.
 Return ONLY a single valid JSON object with exactly this shape:
 

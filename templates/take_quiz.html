@@ -8,13 +8,13 @@
     <h1>{{ quiz.title }}</h1>
     {% if quiz.completed_at %}<p class="muted small">Completed {{ quiz.completed_at.strftime('%b %d, %Y') }}</p>{% endif %}
 
-    <div class="quiz-tools">
-      <button type="button" id="openCalcBtn" class="tool-btn">🧮 Calculator</button>
-      <button type="button" id="openDrawBtn" class="tool-btn">✏️ Draw</button>
-    </div>
-
     <section id="quizContainer"></section>
   </main>
+</div>
+
+<div class="quiz-tools-rail">
+  <button type="button" id="openCalcBtn" class="tool-fab" title="Calculator">🧮</button>
+  <button type="button" id="openDrawBtn" class="tool-fab" title="Draw">✏️</button>
 </div>
 
 <div class="calc-window" id="calcWindow" hidden>
@@ -101,6 +101,8 @@
         gradeQuestion(pi, saved.choice);
       }
     });
+
+    renderMathIn(container);
   }
 
   function gradeQuestion(pi, selectedChoice) {
@@ -126,6 +128,7 @@
       feedbackEl.textContent = (chosen && chosen.explanation) || "That's not right.";
       feedbackEl.className = "quiz-feedback incorrect-text";
     }
+    renderMathIn(feedbackEl);
   }
 
   function saveAnswer(pi, choiceIndex, submitted) {
