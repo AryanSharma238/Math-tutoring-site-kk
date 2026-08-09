@@ -60,11 +60,11 @@ COMMON_TIMEZONES = [
 ]
 
 FREE_MODELS = [
-    "inclusionai/ling-3.0-tiny:free",
-    "nvidia/nemotron-3-nano-30b-a3b:free",
     "openai/gpt-oss-20b:free",
+    "nvidia/nemotron-3-nano-30b-a3b:free",
     "google/gemma-4-31b-it:free",
     "cohere/north-mini-code:free",
+    "inclusionai/ling-3.0-tiny:free",
 ]
 
 QUIZ_SYSTEM_PROMPT = """You are a math problem generator. Given a topic/prompt, generate exactly {count} distinct multiple-choice math problems matching it, plus a short descriptive title for the quiz as a whole.
@@ -134,10 +134,18 @@ def _validate_quiz_payload(parsed, topic):
     return title, parsed["questions"]
 
 
-def _generate_quiz(topic, model, count):
+def _generate_quiz_attempt(topic, model, count, strict_reminder=False):
     api_key = os.environ.get("OPENROUTER_API_KEY")
     if not api_key:
         raise RuntimeError("Server is missing OPENROUTER_API_KEY.")
+
+    system_prompt = QUIZ_SYSTEM_PROMPT.format(count=count)
+    if strict_reminder:
+        system_prompt += (
+            "\n\nIMPORTANT: your previous attempt did not follow the required JSON shape exactly. "
+            "Double check before responding: every question must have EXACTLY one choice with "
+            "\"correct\": true and all others \"correct\": false -- not zero, not two or more."
+        )
 
     try:
         resp = requests.post(
@@ -149,7 +157,7 @@ def _generate_quiz(topic, model, count):
             json={
                 "model": model,
                 "messages": [
-                    {"role": "system", "content": QUIZ_SYSTEM_PROMPT.format(count=count)},
+                    {"role": "system", "content": system_prompt},
                     {"role": "user", "content": topic or "general math problems, mixed topics"},
                 ],
             },
@@ -180,6 +188,30 @@ def _generate_quiz(topic, model, count):
     parsed = _extract_json_object(raw)
     title, questions = _validate_quiz_payload(parsed, topic)
     return {"title": title, "model": model, "questions": questions}
+
+
+# Smaller/faster free models occasionally don't follow the strict JSON schema (e.g. a
+# question with zero or two+ "correct" choices). Rather than surfacing that as a failure
+# to the user, silently retry a couple of times with a sharper reminder before giving up.
+_MAX_QUIZ_GENERATION_ATTEMPTS = 3
+
+
+def _generate_quiz(topic, model, count):
+    last_error = None
+    for attempt in range(_MAX_QUIZ_GENERATION_ATTEMPTS):
+        try:
+            return _generate_quiz_attempt(topic, model, count, strict_reminder=attempt > 0)
+        except ValueError as exc:
+            # Validation/parsing failure -- the model didn't follow the schema. Worth retrying.
+            last_error = exc
+            continue
+        except RuntimeError:
+            # Network/API-level failure (404, timeout, bad key, etc.) -- retrying won't help.
+            raise
+    raise RuntimeError(
+        f"The AI kept returning improperly formatted quizzes after {_MAX_QUIZ_GENERATION_ATTEMPTS} attempts "
+        f"({last_error}). Try a different model, or fewer questions."
+    )
 
 
 def _run_quiz_generation_job(job_id, topic, model, count):
