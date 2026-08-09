@@ -185,6 +185,9 @@ def _generate_quiz_attempt(topic, model_value, count, strict_reminder=False):
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": topic or "general math problems, mixed topics"},
         ],
+        # Without an explicit limit, longer quizzes (more questions) can get cut off mid-JSON,
+        # which providers with strict JSON-mode validation (Groq) reject outright as a 400.
+        "max_tokens": min(1200 * count + 800, 8192),
     }
     if provider["supports_json_mode"]:
         payload["response_format"] = {"type": "json_object"}
@@ -209,6 +212,10 @@ def _generate_quiz_attempt(topic, model_value, count, strict_reminder=False):
             f"The model \"{model}\" doesn't exist on {provider['display_name']} anymore (it may have been retired). "
             "Please pick a different model from the dropdown."
         )
+    if resp.status_code == 400 and provider["supports_json_mode"]:
+        # This provider validates JSON syntax server-side and 400s if the model's output wasn't
+        # valid JSON (often from truncation or a one-off model slip) -- worth retrying, not fatal.
+        raise ValueError(f"{provider['display_name']} rejected the generated output as invalid JSON (HTTP 400).")
     if not resp.ok:
         raise RuntimeError(f"{provider['display_name']} returned an error (HTTP {resp.status_code}). Try again in a moment.")
 
