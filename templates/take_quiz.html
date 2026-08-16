@@ -3,7 +3,7 @@
 {% block body %}
 <div class="quiz-take-shell">
   <div class="quiz-take-topbar">
-    <a href="{{ url_for('quizzes') }}" class="quiz-take-back" title="Exit quiz">&larr; Exit</a>
+    <a href="{{ url_for('dashboard') }}" class="quiz-take-back" title="Exit quiz">&larr; Exit</a>
     <h1 class="quiz-take-title">{{ quiz.title }}</h1>
     <div class="quiz-nav-dots" id="quizNavDots"></div>
   </div>
@@ -204,7 +204,7 @@
       currentIndex += 1;
       renderQuestion();
     } else {
-      window.location.href = "{{ url_for('quizzes') }}";
+      window.location.href = "{{ url_for('dashboard') }}";
     }
   });
 

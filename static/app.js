@@ -88,7 +88,7 @@ function _showClassCallWidget(roomUrl, displayName) {
   document.addEventListener("mouseup", () => { dragging = false; });
 })();
 
-// ---------- Whiteboard launcher: left-edge pull-tab, present on every page ----------
+// ---------- Whiteboard launcher: right-edge pull-tab, present on every page ----------
 (function () {
   const tab = document.getElementById("wbLaunchTab");
   const overlay = document.getElementById("wbLaunchOverlay");
@@ -331,6 +331,27 @@ function renderGraphIn(container, graph) {
   // fixes that without waiting on anything fragile like a timeout.
   requestAnimationFrame(() => chart.resize());
 }
+
+// Profile avatar + dropdown (replaces the old sidebar Settings/Sign out links) --
+// deterministic color from the user's id so the same person always gets the same avatar.
+(function () {
+  const avatarBtn = document.getElementById("profileAvatarBtn");
+  const dropdown = document.getElementById("profileDropdown");
+  if (!avatarBtn || !dropdown) return;
+
+  const seed = parseInt(avatarBtn.dataset.seed, 10) || 0;
+  const hue1 = (seed * 47) % 360;
+  const hue2 = (hue1 + 45 + ((seed * 13) % 90)) % 360;
+  avatarBtn.style.background = `linear-gradient(135deg, hsl(${hue1} 70% 55%), hsl(${hue2} 70% 45%))`;
+
+  avatarBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    dropdown.hidden = !dropdown.hidden;
+  });
+  document.addEventListener("click", (e) => {
+    if (!dropdown.hidden && !e.target.closest(".profile-menu")) dropdown.hidden = true;
+  });
+})();
 
 // Sidebar collapse
 (function () {

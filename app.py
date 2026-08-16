@@ -17,7 +17,7 @@ from flask import (
 from io import BytesIO
 from supabase import create_client
 
-from models import CurriculumFile, Quiz, SiteEmbed, StudentProfile, TodoItem, User, db
+from models import ClassScheduleSlot, CurriculumFile, Quiz, StudentProfile, TodoItem, User, db
 
 GITHUB_REPO = "AryanSharma238/Math-tutoring-site-kk"
 
@@ -562,6 +562,13 @@ _PENDING_COLUMN_MIGRATIONS = [
     # object-model whiteboard here -- drop its tables so they don't linger unused.
     "DROP TABLE IF EXISTS board_collaborators",
     "DROP TABLE IF EXISTS boards",
+    # A student can now have more than one weekly class slot -- these single columns are
+    # replaced by the class_schedule_slots table.
+    "ALTER TABLE student_profiles DROP COLUMN class_weekday",
+    "ALTER TABLE student_profiles DROP COLUMN class_time",
+    # The Canva slideshow feature is gone -- assignments/homework replaced it as the thing
+    # students see on their dashboard.
+    "DROP TABLE IF EXISTS site_embeds",
 ]
 
 
@@ -767,7 +774,10 @@ def register_routes(app):
 
         return render_template(
             "student_dashboard.html", user=user, profile=profile,
-            next_class=profile.next_class, active="dashboard",
+            next_class=profile.next_class,
+            assigned_quizzes=profile.assigned_quizzes,
+            completed_quizzes=profile.completed_quizzes,
+            active="dashboard",
             class_call_url=CLASS_CALL_PARTICIPANT_URL,
         )
 
@@ -789,92 +799,17 @@ def register_routes(app):
     from whiteboard_routes import register_whiteboard_routes
     register_whiteboard_routes(app)
 
-    @app.route("/admin/student/<int:user_id>/embed", methods=["POST"])
-    @login_required
-    @admin_required
-    def admin_student_set_embed(user_id):
-        student = User.query.filter_by(id=user_id, is_admin=False).first_or_404()
-        pasted = request.form.get("embed_code", "")
-        # Accept either a full pasted embed blob (iframe/div/script, any line breaks/whitespace)
-        # or a bare URL -- pull the iframe src out with a regex so formatting never matters.
-        match = re.search(r'<iframe[^>]*\ssrc=["\']([^"\']+)["\']', pasted, re.IGNORECASE | re.DOTALL)
-        src = match.group(1) if match else pasted.strip()
-
-        if not src:
-            flash("Paste the embed code (or its URL) first.")
-            return redirect(url_for("admin_student", user_id=user_id))
-
-        host = urlsplit(src).netloc.lower()
-        if not host.endswith("canva.com"):
-            flash("Only canva.com embed links are allowed.")
-            return redirect(url_for("admin_student", user_id=user_id))
-
-        embed = SiteEmbed.query.filter_by(profile_id=student.profile.id).first()
-        if embed is None:
-            embed = SiteEmbed(profile_id=student.profile.id, src_url=src)
-            db.session.add(embed)
-        else:
-            embed.src_url = src
-        db.session.commit()
-        flash("Slideshow updated.")
-        return redirect(url_for("admin_student", user_id=user_id))
-
-    @app.route("/slideshow")
-    @login_required
-    def slideshow():
-        user = current_user()
-        if user.is_admin:
-            return redirect(url_for("dashboard"))
-        profile = user.profile
-        if not profile or not profile.setup_complete:
-            return render_template("waiting.html", user=user)
-
-        embed = SiteEmbed.query.filter_by(profile_id=profile.id).first()
-        return render_template(
-            "slideshow.html", user=user, profile=profile, embed=embed, active="slideshow",
-        )
-
+    # /quizzes and /my-quizzes used to be their own pages; assignments now live directly on
+    # the dashboard as tabs, so both just redirect there for anyone with an old bookmark/link.
     @app.route("/quizzes")
     @login_required
     def quizzes():
-        user = current_user()
-        if user.is_admin:
-            return redirect(url_for("dashboard"))
-        profile = user.profile
-        if not profile or not profile.setup_complete:
-            return render_template("waiting.html", user=user)
-
-        teacher_quizzes = [q for q in profile.quizzes if not q.is_student_created]
-
-        # "Recently assigned" only makes sense for something still outstanding --
-        # once it's completed it belongs in the Completed list instead, not here too.
-        not_done = [q for q in teacher_quizzes if not q.completed_at]
-        recently_assigned = not_done[0] if not_done else None
-        todo = [q for q in not_done if q.id != (recently_assigned.id if recently_assigned else None)]
-        completed = sorted(
-            (q for q in teacher_quizzes if q.completed_at), key=lambda q: q.completed_at, reverse=True
-        )
-        return render_template(
-            "quizzes.html", user=user, profile=profile,
-            recently_assigned=recently_assigned, todo=todo, completed=completed,
-            active="quizzes",
-        )
+        return redirect(url_for("dashboard"))
 
     @app.route("/my-quizzes")
     @login_required
     def own_quizzes_page():
-        user = current_user()
-        if user.is_admin:
-            return redirect(url_for("dashboard"))
-        profile = user.profile
-        if not profile or not profile.setup_complete:
-            return render_template("waiting.html", user=user)
-
-        own_quizzes = [q for q in profile.quizzes if q.is_student_created]
-        return render_template(
-            "own_quizzes.html", user=user, profile=profile,
-            own_quizzes=own_quizzes, active="my-quizzes",
-        )
+        return redirect(url_for("dashboard"))
 
     @app.route("/quizzes/<int:quiz_id>")
     @login_required
@@ -926,6 +861,20 @@ def register_routes(app):
 
         db.session.commit()
         return {"ok": True, "completed": bool(quiz.completed_at)}
+
+    @app.route("/quizzes/completed/clear-all", methods=["POST"])
+    @login_required
+    def clear_all_completed_quizzes():
+        """Resets every completed assignment back to Assigned (clears its answers and
+        completed_at) -- the bulk 'clear it all' action on the Completed tab."""
+        user = current_user()
+        if user.is_admin or not user.profile:
+            abort(403)
+        for quiz in user.profile.completed_quizzes:
+            quiz.completed_at = None
+            quiz.answers_json = None
+        db.session.commit()
+        return redirect(url_for("dashboard"))
 
     @app.route("/settings")
     @login_required
@@ -1050,20 +999,12 @@ def register_routes(app):
     @app.route("/admin/student/<int:user_id>/schedule", methods=["POST"])
     @login_required
     @admin_required
-    def admin_student_set_schedule(user_id):
-        """Set the student's weekly recurring class time once -- "next class" is then always
-        computed from this automatically, no manual re-adding needed week to week."""
+    def admin_student_add_schedule_slot(user_id):
+        """Add one weekly recurring class slot -- a student can have several (e.g. Tuesdays
+        AND Thursdays), each computed toward "next class" automatically going forward."""
         student = User.query.filter_by(id=user_id, is_admin=False).first_or_404()
-        profile = student.profile
         weekday_str = request.form.get("class_weekday", "")
         time_str = request.form.get("class_time", "")
-
-        if weekday_str == "" or not time_str:
-            profile.class_weekday = None
-            profile.class_time = None
-            db.session.commit()
-            flash("Weekly class time cleared.")
-            return redirect(url_for("admin_student", user_id=user_id))
 
         try:
             weekday = int(weekday_str)
@@ -1076,10 +1017,21 @@ def register_routes(app):
             flash("Invalid day or time.")
             return redirect(url_for("admin_student", user_id=user_id))
 
-        profile.class_weekday = weekday
-        profile.class_time = f"{hour:02d}:{minute:02d}"
+        db.session.add(ClassScheduleSlot(
+            profile_id=student.profile.id, weekday=weekday, time=f"{hour:02d}:{minute:02d}",
+        ))
         db.session.commit()
-        flash("Weekly class time saved.")
+        flash("Class time added.")
+        return redirect(url_for("admin_student", user_id=user_id))
+
+    @app.route("/admin/student/<int:user_id>/schedule/<int:slot_id>/delete", methods=["POST"])
+    @login_required
+    @admin_required
+    def admin_student_delete_schedule_slot(user_id, slot_id):
+        student = User.query.filter_by(id=user_id, is_admin=False).first_or_404()
+        slot = ClassScheduleSlot.query.filter_by(id=slot_id, profile_id=student.profile.id).first_or_404()
+        db.session.delete(slot)
+        db.session.commit()
         return redirect(url_for("admin_student", user_id=user_id))
 
     @app.route("/admin/student/<int:user_id>/quiz/generate/start", methods=["POST"])

@@ -4,12 +4,12 @@
 <div class="portal">
   {% include "_student_sidebar.html" %}
 
-  <main class="content">
+  <main class="content content-wide">
     <h1>Dashboard</h1>
 
     <div class="dash-grid">
       <section class="card next-class">
-        <h3>Next class is</h3>
+        <h3>Upcoming class</h3>
         {% if next_class %}
           <p class="big-text" id="nextClassDate"
              data-utc="{{ next_class.isoformat() }}"
@@ -17,37 +17,17 @@
             Loading...
           </p>
           <p class="countdown" id="countdown"></p>
-          <p class="muted small">Repeats weekly &middot; {{ profile.course_name or "No course set" }}</p>
+          <p class="muted small">{{ profile.course_name or "No course set" }}</p>
           {% if class_call_url %}
             <button type="button" class="join-class-btn" id="joinClassBtn"
               data-url="{{ class_call_url }}" data-name="{{ user.name or user.email }}">
-              Join Class
+              Join Call
             </button>
           {% endif %}
         {% else %}
           <p class="muted">No upcoming classes scheduled yet.</p>
           <p class="muted small">{{ profile.course_name or "No course set" }}</p>
         {% endif %}
-      </section>
-
-      <section class="card activity">
-        <h3>Homework</h3>
-        <div class="activity-row">
-          <span class="activity-label">Latest assigned</span>
-          {% if profile.latest_assigned_quiz %}
-            <a href="{{ url_for('take_quiz', quiz_id=profile.latest_assigned_quiz.id) }}" class="activity-value">{{ profile.latest_assigned_quiz.title }}</a>
-          {% else %}
-            <span class="muted small">None yet</span>
-          {% endif %}
-        </div>
-        <div class="activity-row">
-          <span class="activity-label">Latest completed</span>
-          {% if profile.latest_completed_quiz %}
-            <a href="{{ url_for('take_quiz', quiz_id=profile.latest_completed_quiz.id) }}" class="activity-value">{{ profile.latest_completed_quiz.title }}</a>
-          {% else %}
-            <span class="muted small">None yet</span>
-          {% endif %}
-        </div>
       </section>
 
       <section class="card curriculum">
@@ -65,6 +45,66 @@
         {% endif %}
       </section>
     </div>
+
+    <section class="card assignments-card">
+      <div class="assignments-tabs">
+        <button type="button" class="assignments-tab active" data-tab="assigned">Assigned</button>
+        <button type="button" class="assignments-tab" data-tab="completed">Completed</button>
+        <button type="button" class="assignments-tab" data-tab="self-assign">Self-Assign Quizzes</button>
+      </div>
+
+      <div class="assignments-panel" data-panel="assigned">
+        <div class="assignment-cover-list" id="assignedList">
+          {% for q in assigned_quizzes %}
+            <a href="{{ url_for('take_quiz', quiz_id=q.id) }}" class="assignment-cover" data-seed="{{ q.id }}">
+              <div class="assignment-cover-art"></div>
+              <div class="assignment-cover-body">
+                <span class="assignment-cover-title">{{ q.title }}</span>
+                <span class="assignment-cover-count">{{ q.question_count }} question{{ 's' if q.question_count != 1 else '' }}</span>
+              </div>
+            </a>
+          {% else %}
+            <p class="muted">Nothing assigned right now.</p>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="assignments-panel" data-panel="completed" hidden>
+        {% if completed_quizzes %}
+          <form method="POST" action="{{ url_for('clear_all_completed_quizzes') }}"
+            onsubmit="return confirm('Clear all completed assignments? They\'ll move back to Assigned.');">
+            <button type="submit" class="secondary-btn">Clear all completed</button>
+          </form>
+        {% endif %}
+        <div class="assignment-cover-list" id="completedList">
+          {% for q in completed_quizzes %}
+            <a href="{{ url_for('take_quiz', quiz_id=q.id) }}" class="assignment-cover" data-seed="{{ q.id }}">
+              <div class="assignment-cover-art"></div>
+              <div class="assignment-cover-body">
+                <span class="assignment-cover-title">{{ q.title }}</span>
+                <span class="assignment-cover-count">{{ q.question_count }} question{{ 's' if q.question_count != 1 else '' }}</span>
+              </div>
+            </a>
+          {% else %}
+            <p class="muted">No completed assignments yet.</p>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="assignments-panel" data-panel="self-assign" hidden>
+        <p class="muted small">Generate practice quizzes for yourself -- once created, they show up in the Assigned tab like anything else.</p>
+        <form id="ownQuizForm" class="form-grid">
+          <label>Topic
+            <textarea name="topic" rows="2" placeholder="e.g. 10 practice problems on the unit circle"></textarea>
+          </label>
+          <label>How many questions
+            <input type="number" name="count" min="1" max="25" value="5">
+          </label>
+          <button type="submit" id="ownQuizBtn">Generate quiz</button>
+        </form>
+        <p class="quiz-status" id="ownQuizStatus"></p>
+      </div>
+    </section>
   </main>
 </div>
 {% endblock %}
@@ -103,5 +143,91 @@
       openClassCall(joinClassBtn.dataset.url, joinClassBtn.dataset.name);
     });
   }
+
+  // Deterministic "cool professional" cover art per assignment -- a gradient seeded by the
+  // quiz's own id, so the same quiz always gets the same cover.
+  document.querySelectorAll(".assignment-cover[data-seed]").forEach((card) => {
+    const seed = parseInt(card.dataset.seed, 10) || 0;
+    const hue1 = (seed * 41) % 360;
+    const hue2 = (hue1 + 40 + ((seed * 17) % 80)) % 360;
+    const art = card.querySelector(".assignment-cover-art");
+    if (art) art.style.background = `linear-gradient(135deg, hsl(${hue1} 65% 55%), hsl(${hue2} 65% 40%))`;
+  });
+
+  // Assignments tabs
+  const tabs = document.querySelectorAll(".assignments-tab");
+  const panels = document.querySelectorAll(".assignments-panel");
+  tabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      tabs.forEach((t) => t.classList.remove("active"));
+      tab.classList.add("active");
+      panels.forEach((p) => { p.hidden = p.dataset.panel !== tab.dataset.tab; });
+    });
+  });
+
+  // Self-assign quiz generation
+  const ownForm = document.getElementById("ownQuizForm");
+  const ownBtn = document.getElementById("ownQuizBtn");
+  const ownStatus = document.getElementById("ownQuizStatus");
+
+  async function safeJsonOwn(resp) {
+    const text = await resp.text();
+    try { return JSON.parse(text); }
+    catch { throw new Error("Server returned an unexpected response. Please try again."); }
+  }
+
+  function pollOwnJob(jobId) {
+    return new Promise((resolve, reject) => {
+      const check = async () => {
+        let data;
+        try {
+          const resp = await fetch(`/quizzes/create/status/${jobId}`);
+          data = await safeJsonOwn(resp);
+        } catch (err) {
+          reject(err);
+          return;
+        }
+        if (data.status === "pending") {
+          setTimeout(check, 2500);
+        } else if (data.status === "done") {
+          resolve(data.result);
+        } else {
+          reject(new Error(data.error || "Quiz generation failed."));
+        }
+      };
+      check();
+    });
+  }
+
+  ownForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    ownBtn.disabled = true;
+    ownStatus.textContent = "Loading... generating your quiz, this can take a couple of minutes.";
+
+    const formData = new FormData(ownForm);
+    try {
+      const startResp = await fetch("/quizzes/create/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topic: formData.get("topic"),
+          count: formData.get("count"),
+        }),
+      });
+      const startData = await safeJsonOwn(startResp);
+      if (!startResp.ok || !startData.job_id) {
+        ownStatus.textContent = startData.error || "Could not start quiz generation.";
+        return;
+      }
+
+      const result = await pollOwnJob(startData.job_id);
+      ownStatus.textContent = `Created "${result.title}". Taking you to Assigned...`;
+      setTimeout(() => window.location.reload(), 800);
+    } catch (err) {
+      ownStatus.textContent = err.message;
+    } finally {
+      ownBtn.disabled = false;
+    }
+  });
 </script>
 {% endblock %}

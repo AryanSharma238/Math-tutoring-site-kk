@@ -45,43 +45,31 @@
     </section>
 
     <section class="card">
-      <h3>Weekly class time</h3>
-      <p class="muted small">Set this once -- "next class" on the student's dashboard is always computed automatically from this recurring time, no need to re-add it every week.</p>
-      <form method="POST" action="{{ url_for('admin_student_set_schedule', user_id=student.id) }}" class="form-row">
+      <h3>Weekly class times</h3>
+      <p class="muted small">Add as many recurring weekly slots as needed (e.g. Tuesdays AND Thursdays) -- "next class" on the student's dashboard always computes the soonest one automatically.</p>
+      {% if profile.schedule_slots %}
+        <ul class="file-list">
+          {% for slot in profile.schedule_slots %}
+            {% set day_names = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'] %}
+            <li>
+              {{ day_names[slot.weekday] }} at {{ slot.time }} ({{ profile.timezone }})
+              <form method="POST" action="{{ url_for('admin_student_delete_schedule_slot', user_id=student.id, slot_id=slot.id) }}" class="inline-form">
+                <button type="submit" class="link-btn">remove</button>
+              </form>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      <form method="POST" action="{{ url_for('admin_student_add_schedule_slot', user_id=student.id) }}" class="form-row">
         <select name="class_weekday">
-          <option value="" {{ "selected" if profile.class_weekday is none else "" }}>No weekly class</option>
           {% for i, day in [(0,'Monday'),(1,'Tuesday'),(2,'Wednesday'),(3,'Thursday'),(4,'Friday'),(5,'Saturday'),(6,'Sunday')] %}
-            <option value="{{ i }}" {{ "selected" if profile.class_weekday == i else "" }}>{{ day }}</option>
+            <option value="{{ i }}">{{ day }}</option>
           {% endfor %}
         </select>
-        <input type="time" name="class_time" value="{{ profile.class_time or '' }}">
+        <input type="time" name="class_time" required>
         <span class="muted small">in {{ profile.timezone }} (set above under Profile)</span>
-        <button type="submit">Save weekly time</button>
+        <button type="submit">Add class time</button>
       </form>
-    </section>
-
-    <section class="card">
-      <h3>Slideshow</h3>
-      <p class="muted small">
-        Paste the full embed code Canva gives you (Share &rarr; Embed) -- the whole block, line breaks and all.
-        It's parsed automatically, so pasting doesn't need to be tidy.
-        Shown here in edit mode: it's only actually editable if you're logged into Canva with access to this design.
-        The student sees a view-only version of the same board under their "Slideshow" tab.
-      </p>
-      <form method="POST" action="{{ url_for('admin_student_set_embed', user_id=student.id) }}" class="form-row">
-        <textarea name="embed_code" rows="4" style="width:100%;" placeholder='<div style="position: relative; ..."><iframe src="https://www.canva.com/design/.../view?embed" ...></iframe></div>'>{{ profile.embed.src_url if profile.embed else "" }}</textarea>
-        <button type="submit">Save slideshow</button>
-      </form>
-
-      {% if profile.embed %}
-        <div class="slideshow-embed-wrap">
-          <iframe loading="lazy" class="slideshow-embed-frame"
-            src="{{ profile.embed.edit_src_url }}" allowfullscreen="allowfullscreen" allow="fullscreen">
-          </iframe>
-        </div>
-      {% else %}
-        <p class="muted">No slideshow saved yet for this student.</p>
-      {% endif %}
     </section>
 
     <section class="card">

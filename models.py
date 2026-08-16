@@ -13,30 +13,6 @@ class TodoItem(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(dt_timezone.utc))
 
 
-class SiteEmbed(db.Model):
-    """One admin-pasted embed (e.g. a Canva slideshow) per student profile."""
-    __tablename__ = "site_embeds"
-
-    id = db.Column(db.Integer, primary_key=True)
-    profile_id = db.Column(db.Integer, db.ForeignKey("student_profiles.id"), unique=True, nullable=False, index=True)
-    src_url = db.Column(db.Text, nullable=False)
-    updated_at = db.Column(
-        db.DateTime,
-        default=lambda: datetime.now(dt_timezone.utc),
-        onupdate=lambda: datetime.now(dt_timezone.utc),
-    )
-
-    @property
-    def edit_src_url(self):
-        """Same design but pointed at Canva's edit mode instead of view mode.
-        Only actually editable in the browser if the viewer is logged into Canva
-        with edit access to the design -- otherwise Canva shows it read-only anyway,
-        same as it always did."""
-        if "/view" in self.src_url:
-            return self.src_url.replace("/view", "/edit", 1)
-        return self.src_url
-
-
 class User(db.Model):
     __tablename__ = "users"
 
@@ -62,12 +38,6 @@ class StudentProfile(db.Model):
     timezone = db.Column(db.String(64), default="America/New_York", nullable=False)
     setup_complete = db.Column(db.Boolean, default=False, nullable=False)
 
-    # Weekly recurring class time -- set once by the admin, then "next class" is always computed
-    # from this instead of needing a fresh one-off entry added by hand every week.
-    # class_weekday: 0=Monday .. 6=Sunday (Python's datetime.weekday() convention).
-    class_weekday = db.Column(db.Integer, nullable=True)
-    class_time = db.Column(db.String(5), nullable=True)  # "HH:MM", 24-hour, in `timezone`
-
     whiteboard_workspace = db.relationship(
         "WhiteboardWorkspace", backref="profile", uselist=False, cascade="all, delete-orphan",
     )
@@ -80,49 +50,69 @@ class StudentProfile(db.Model):
         "Quiz", backref="profile", cascade="all, delete-orphan",
         order_by="Quiz.created_at.desc()",
     )
-    embed = db.relationship(
-        "SiteEmbed", backref="profile", uselist=False, cascade="all, delete-orphan",
+    schedule_slots = db.relationship(
+        "ClassScheduleSlot", backref="profile", cascade="all, delete-orphan",
+        order_by="ClassScheduleSlot.weekday, ClassScheduleSlot.time",
     )
 
     @property
     def next_class(self):
-        """The next occurrence of the weekly recurring class time, computed on the fly --
-        no manually-added one-off session rows to maintain."""
-        if self.class_weekday is None or not self.class_time:
+        """The next occurrence across every recurring weekly slot -- a student can now have
+        more than one class time a week, so this checks all of them and returns the soonest.
+        Still fully computed on the fly, no manually-added one-off session rows to maintain."""
+        if not self.schedule_slots:
             return None
         try:
             from zoneinfo import ZoneInfo
-            hour, minute = (int(p) for p in self.class_time.split(":"))
             tz = ZoneInfo(self.timezone)
         except Exception:
             return None
 
         now_local = datetime.now(tz)
-        days_ahead = (self.class_weekday - now_local.weekday()) % 7
-        candidate = (now_local + timedelta(days=days_ahead)).replace(
-            hour=hour, minute=minute, second=0, microsecond=0
-        )
-        if candidate < now_local:
-            candidate += timedelta(days=7)
-        return candidate.astimezone(dt_timezone.utc)
+        candidates = []
+        for slot in self.schedule_slots:
+            try:
+                hour, minute = (int(p) for p in slot.time.split(":"))
+            except (ValueError, AttributeError):
+                continue
+            days_ahead = (slot.weekday - now_local.weekday()) % 7
+            candidate = (now_local + timedelta(days=days_ahead)).replace(
+                hour=hour, minute=minute, second=0, microsecond=0
+            )
+            if candidate < now_local:
+                candidate += timedelta(days=7)
+            candidates.append(candidate)
+        if not candidates:
+            return None
+        return min(candidates).astimezone(dt_timezone.utc)
 
     @property
     def latest_curriculum(self):
         return self.curriculum_files[0] if self.curriculum_files else None
 
     @property
-    def latest_assigned_quiz(self):
-        # Quizzes a student generates for themselves ("My Quizzes") are a separate practice
-        # feature and should never show up as "homework" -- only teacher-assigned ones count.
-        assigned = [q for q in self.quizzes if not q.is_student_created]
-        return assigned[0] if assigned else None
+    def assigned_quizzes(self):
+        """Everything still outstanding -- teacher-assigned and self-assigned together, since
+        both now live in the same 'Assignments' list."""
+        return [q for q in self.quizzes if not q.completed_at]
 
     @property
-    def latest_completed_quiz(self):
-        completed = [q for q in self.quizzes if q.completed_at and not q.is_student_created]
-        if not completed:
-            return None
-        return max(completed, key=lambda q: q.completed_at)
+    def completed_quizzes(self):
+        return sorted(
+            (q for q in self.quizzes if q.completed_at), key=lambda q: q.completed_at, reverse=True,
+        )
+
+
+class ClassScheduleSlot(db.Model):
+    """One weekly recurring class time. A student can have several of these (e.g. Tuesdays
+    and Thursdays) -- StudentProfile.next_class checks all of them and returns the soonest."""
+    __tablename__ = "class_schedule_slots"
+
+    id = db.Column(db.Integer, primary_key=True)
+    profile_id = db.Column(db.Integer, db.ForeignKey("student_profiles.id"), nullable=False, index=True)
+    weekday = db.Column(db.Integer, nullable=False)  # 0=Monday .. 6=Sunday
+    time = db.Column(db.String(5), nullable=False)  # "HH:MM", 24-hour, in the profile's timezone
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(dt_timezone.utc))
 
 
 class WhiteboardWorkspace(db.Model):
