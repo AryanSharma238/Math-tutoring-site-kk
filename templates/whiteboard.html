@@ -6,13 +6,40 @@
   <main class="content whiteboard-content">
     <h1>Whiteboard</h1>
     <p class="muted small">
-      Your own notes board -- draw, highlight, upload images, and write freely. Everything
-      saves automatically as you work, and your teacher can open this exact same board and
-      edit it live with you. Use the board's own menu (top-left) to export your notes as a PDF.
+      Your own notes board(s) -- draw, highlight, upload images, and write freely. Your
+      teacher can open the same page and edit it live with you. Use the board's own menu
+      (top-left inside the board) to export your notes as a PDF or image.
     </p>
-    <div class="whiteboard-embed-wrap">
-      <iframe src="{{ board_url }}" class="whiteboard-embed-frame" allow="clipboard-write"></iframe>
-    </div>
+
+    {% if pages %}
+      <div class="wb-page-tabs" id="wbPageTabs">
+        {% for p in pages %}
+          <button type="button" class="wb-page-tab {{ 'active' if loop.first else '' }}" data-src="{{ p.src_url }}">
+            {{ p.title or ("Page " ~ loop.index) }}
+          </button>
+        {% endfor %}
+      </div>
+      <div class="whiteboard-embed-wrap">
+        <iframe id="wbFrame" src="{{ pages[0].src_url }}" class="whiteboard-embed-frame" allow="clipboard-write"></iframe>
+      </div>
+    {% else %}
+      <p class="muted">Your teacher hasn't set up a whiteboard page for you yet.</p>
+    {% endif %}
   </main>
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+  const wbTabs = document.getElementById("wbPageTabs");
+  const wbFrame = document.getElementById("wbFrame");
+  if (wbTabs && wbFrame) {
+    wbTabs.addEventListener("click", (e) => {
+      const btn = e.target.closest(".wb-page-tab");
+      if (!btn) return;
+      wbTabs.querySelectorAll(".wb-page-tab").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      wbFrame.src = btn.dataset.src;
+    });
+  }
+</script>
 {% endblock %}

@@ -26,6 +26,22 @@
   {% endif %}
 {% endwith %}
 {% block body %}{% endblock %}
+
+<!-- Class call: embedded in-page (not a separate popup/app), present on every page so it
+     reappears automatically after navigating -- see openClassCall() in app.js. -->
+<div class="call-window" id="callWindow" hidden>
+  <div class="call-header" id="callHeader">
+    <span class="call-title">Class Call</span>
+    <div class="call-header-btns">
+      <button type="button" class="call-header-btn" id="closeCallBtn" title="Leave and close">&times;</button>
+    </div>
+  </div>
+  <div class="call-body">
+    <iframe id="callFrame" class="call-frame" allow="camera; microphone; display-capture; fullscreen"></iframe>
+  </div>
+  <div class="call-resize-handle" id="callResizeHandle"></div>
+</div>
+
 <script src="{{ url_for('static', filename='app.js') }}"></script>
 {% block scripts %}{% endblock %}
 </body>

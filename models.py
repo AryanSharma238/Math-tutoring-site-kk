@@ -68,18 +68,10 @@ class StudentProfile(db.Model):
     class_weekday = db.Column(db.Integer, nullable=True)
     class_time = db.Column(db.String(5), nullable=True)  # "HH:MM", 24-hour, in `timezone`
 
-    # This student's personal Excalidraw collaboration room -- generated once (see
-    # _ensure_whiteboard in app.py) and reused forever after, so both the student and the
-    # admin always land in the same live room and see each other's edits in real time via
-    # Excalidraw's own collaboration backend (no custom sync code needed on our end).
-    whiteboard_room = db.Column(db.String(32), nullable=True)
-    whiteboard_key = db.Column(db.String(32), nullable=True)
-
-    @property
-    def whiteboard_url(self):
-        if not self.whiteboard_room or not self.whiteboard_key:
-            return None
-        return f"https://excalidraw.com/#room={self.whiteboard_room},{self.whiteboard_key}"
+    whiteboard_pages = db.relationship(
+        "WhiteboardPage", backref="profile", cascade="all, delete-orphan",
+        order_by="WhiteboardPage.position",
+    )
 
     curriculum_files = db.relationship(
         "CurriculumFile", backref="profile", cascade="all, delete-orphan",
@@ -132,6 +124,22 @@ class StudentProfile(db.Model):
         if not completed:
             return None
         return max(completed, key=lambda q: q.completed_at)
+
+
+class WhiteboardPage(db.Model):
+    """One live Excalidraw collaboration room, acting as a single 'page' of a student's
+    whiteboard (several of these in order = a Canva-slideshow-style multi-page board).
+    src_url must be a REAL link Excalidraw generated after someone actually clicked
+    'Start session' -- a made-up #room= hash is not an active room, Excalidraw only treats
+    a room as live once its own backend has registered it that way."""
+    __tablename__ = "whiteboard_pages"
+
+    id = db.Column(db.Integer, primary_key=True)
+    profile_id = db.Column(db.Integer, db.ForeignKey("student_profiles.id"), nullable=False, index=True)
+    title = db.Column(db.String(120), nullable=True)
+    src_url = db.Column(db.Text, nullable=False)
+    position = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(dt_timezone.utc))
 
 
 class CurriculumFile(db.Model):

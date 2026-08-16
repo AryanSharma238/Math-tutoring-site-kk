@@ -802,6 +802,32 @@ img.curriculum-viewer {
    instead of being constrained like the slideshow embed. */
 .whiteboard-content { display: flex; flex-direction: column; }
 
+.wb-page-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 1rem;
+}
+
+.wb-page-tab-wrap { display: flex; align-items: center; gap: 0.2rem; }
+
+.wb-page-tab {
+  padding: 0.45rem 0.9rem;
+  border-radius: 8px 8px 0 0;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  background: var(--bg);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.wb-page-tab.active {
+  background: var(--card);
+  color: var(--text);
+  font-weight: 600;
+  border-color: #4f46e5;
+}
+
 .whiteboard-embed-wrap {
   position: relative;
   width: 100%;
@@ -1864,6 +1890,68 @@ img.curriculum-viewer {
 
 .calc-resize-handle {
   display: none; /* native CSS `resize: both` on .calc-window already provides this */
+}
+
+/* Class call widget -- a small portrait rectangle by default (like a video-call PiP tile),
+   floating over whatever page is currently loaded. */
+.call-window {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 300px;
+  height: 480px;
+  min-width: 240px;
+  min-height: 320px;
+  max-width: 95vw;
+  max-height: 90vh;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+  z-index: 700;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  resize: both;
+}
+
+.call-window[hidden] { display: none !important; }
+
+.call-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 0.4rem 0.4rem 0.4rem 0.75rem;
+  cursor: move;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.call-title { font-size: 0.85rem; font-weight: 600; }
+
+.call-header-btn {
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0.3rem 0.5rem;
+  cursor: pointer;
+  color: var(--muted);
+}
+.call-header-btn:hover { color: var(--text); }
+
+.call-body { flex: 1 1 auto; min-height: 0; }
+
+.call-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.call-resize-handle {
+  display: none; /* native CSS `resize: both` on .call-window already provides this */
 }
 
 .draw-overlay {

@@ -1,8 +1,8 @@
 import json
 import math
 import os
+import random
 import re
-import secrets
 import threading
 import uuid
 from datetime import datetime, timedelta, timezone as dt_timezone
@@ -17,7 +17,7 @@ from flask import (
 from io import BytesIO
 from supabase import create_client
 
-from models import CurriculumFile, Quiz, SiteEmbed, StudentProfile, TodoItem, User, db
+from models import CurriculumFile, Quiz, SiteEmbed, StudentProfile, TodoItem, User, WhiteboardPage, db
 
 GITHUB_REPO = "AryanSharma238/Math-tutoring-site-kk"
 
@@ -317,6 +317,14 @@ def _validate_quiz_payload(parsed, topic):
         ]
         if len(set(normalized_texts)) != len(normalized_texts):
             raise ValueError(f"Question {i} has duplicate answer choices. Please try again.")
+
+        # Models are heavily biased toward putting the correct answer first -- shuffle here
+        # instead of relying on the prompt, so the correct choice's position is genuinely
+        # random regardless of what the model does. Relabel A/B/C/... to match the new order.
+        random.shuffle(choices)
+        labels = "ABCDEFGHIJ"
+        for idx, c in enumerate(choices):
+            c["label"] = labels[idx] if idx < len(labels) else str(idx + 1)
 
         _sanitize_graph_field(q)
 
@@ -663,16 +671,6 @@ def register_routes(app):
         session.clear()
         return redirect(url_for("home"))
 
-    def _ensure_whiteboard(profile):
-        """Generate this student's Excalidraw collaboration room the first time anyone (student
-        or admin) opens their whiteboard, then reuse it forever -- same room = same live board
-        for both sides, persisted via Excalidraw's own backend, not ours."""
-        if not profile.whiteboard_room or not profile.whiteboard_key:
-            profile.whiteboard_room = secrets.token_hex(10)
-            profile.whiteboard_key = secrets.token_urlsafe(16)
-            db.session.commit()
-        return profile.whiteboard_url
-
     @app.route("/dashboard")
     @login_required
     def dashboard():
@@ -703,6 +701,19 @@ def register_routes(app):
             "admin_assign_quiz.html", user=current_user(), students=students, active="assign-quiz",
         )
 
+    def _validate_excalidraw_live_url(raw):
+        """Only accept a link that actually points at a live Excalidraw collaboration room:
+        excalidraw.com with a #room=<id>,<key> fragment. A bare excalidraw.com link with no
+        room fragment is just a fresh empty canvas, not a real live session -- Excalidraw only
+        creates a real room once someone has clicked 'Start session' in its own UI."""
+        url = raw.strip()
+        host = urlsplit(url).netloc.lower()
+        if not (host == "excalidraw.com" or host.endswith(".excalidraw.com")):
+            return None
+        if "#room=" not in url:
+            return None
+        return url
+
     @app.route("/whiteboard")
     @login_required
     def whiteboard():
@@ -712,9 +723,8 @@ def register_routes(app):
         profile = user.profile
         if not profile or not profile.setup_complete:
             return render_template("waiting.html", user=user)
-        board_url = _ensure_whiteboard(profile)
         return render_template(
-            "whiteboard.html", user=user, board_url=board_url, active="whiteboard",
+            "whiteboard.html", user=user, pages=profile.whiteboard_pages, active="whiteboard",
         )
 
     @app.route("/admin/whiteboards")
@@ -733,11 +743,44 @@ def register_routes(app):
         student = User.query.filter_by(id=user_id, is_admin=False).first_or_404()
         admin = current_user()
         students = User.query.filter_by(is_admin=False).order_by(User.created_at).all()
-        board_url = _ensure_whiteboard(student.profile)
         return render_template(
             "admin_whiteboard_view.html", user=admin, students=students, student=student,
-            board_url=board_url,
+            pages=student.profile.whiteboard_pages,
         )
+
+    @app.route("/admin/student/<int:user_id>/whiteboard/pages", methods=["POST"])
+    @login_required
+    @admin_required
+    def admin_student_add_whiteboard_page(user_id):
+        student = User.query.filter_by(id=user_id, is_admin=False).first_or_404()
+        raw_url = request.form.get("src_url", "")
+        title = (request.form.get("title") or "").strip()[:120] or None
+        clean_url = _validate_excalidraw_live_url(raw_url)
+        if not clean_url:
+            flash(
+                "That doesn't look like a live Excalidraw session link. Open excalidraw.com, "
+                "click the menu, choose \"Live collaboration\" -> \"Start session\", then copy "
+                "the URL from your address bar (it should contain #room=) and paste that here."
+            )
+            return redirect(url_for("admin_student_whiteboard", user_id=user_id))
+
+        next_position = len(student.profile.whiteboard_pages)
+        db.session.add(WhiteboardPage(
+            profile_id=student.profile.id, title=title, src_url=clean_url, position=next_position,
+        ))
+        db.session.commit()
+        flash("Whiteboard page added.")
+        return redirect(url_for("admin_student_whiteboard", user_id=user_id))
+
+    @app.route("/admin/student/<int:user_id>/whiteboard/pages/<int:page_id>/delete", methods=["POST"])
+    @login_required
+    @admin_required
+    def admin_student_delete_whiteboard_page(user_id, page_id):
+        student = User.query.filter_by(id=user_id, is_admin=False).first_or_404()
+        page = WhiteboardPage.query.filter_by(id=page_id, profile_id=student.profile.id).first_or_404()
+        db.session.delete(page)
+        db.session.commit()
+        return redirect(url_for("admin_student_whiteboard", user_id=user_id))
 
     @app.route("/admin/student/<int:user_id>/embed", methods=["POST"])
     @login_required
