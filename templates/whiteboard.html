@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Whiteboard{% endblock %}
+{% block body %}
+<div class="portal">
+  {% include "_student_sidebar.html" %}
+  <main class="content whiteboard-content">
+    <h1>Whiteboard</h1>
+    <p class="muted small">
+      Your own notes board -- draw, highlight, upload images, and write freely. Everything
+      saves automatically as you work, and your teacher can open this exact same board and
+      edit it live with you. Use the board's own menu (top-left) to export your notes as a PDF.
+    </p>
+    <div class="whiteboard-embed-wrap">
+      <iframe src="{{ board_url }}" class="whiteboard-embed-frame" allow="clipboard-write"></iframe>
+    </div>
+  </main>
+</div>
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}{{ student.name or student.email }} -- Whiteboard{% endblock %}
+{% block body %}
+<div class="portal">
+  {% include "_admin_sidebar.html" %}
+  <main class="content whiteboard-content">
+    <a href="{{ url_for('admin_whiteboards') }}" class="back-link">&larr; Back to whiteboards</a>
+    <h1>{{ student.name or student.email }}'s whiteboard</h1>
+    <p class="muted small">Live and editable -- changes you make here show up for {{ student.name or student.email }} instantly, and theirs show up for you.</p>
+    <div class="whiteboard-embed-wrap">
+      <iframe src="{{ board_url }}" class="whiteboard-embed-frame" allow="clipboard-write"></iframe>
+    </div>
+  </main>
+</div>
+{% endblock %}

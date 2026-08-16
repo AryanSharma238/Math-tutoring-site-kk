@@ -6,6 +6,29 @@
   <main class="content">
     <h1>Dashboard</h1>
     <p class="muted">Select a student from the sidebar to manage their profile, curriculum, slideshow, and class schedule -- or use the "Assign Quiz" tab to generate a quiz for any student.</p>
+
+    <section class="card">
+      <h3>Class call</h3>
+      <p class="muted small">
+        One shared room -- every student joins the same call you start. The first time you
+        start a class, click the shield icon in the call and turn on "Lobby" so students wait
+        to be let in instead of joining straight away.
+      </p>
+      <button type="button" class="join-class-btn" id="startClassBtn"
+        data-room="{{ class_call_room }}" data-name="{{ user.name or user.email }}">
+        Start Class
+      </button>
+    </section>
   </main>
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+  const startClassBtn = document.getElementById("startClassBtn");
+  if (startClassBtn) {
+    startClassBtn.addEventListener("click", () => {
+      openClassCall(startClassBtn.dataset.room, startClassBtn.dataset.name);
+    });
+  }
+</script>
 {% endblock %}

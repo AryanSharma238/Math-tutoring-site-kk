@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Whiteboards{% endblock %}
+{% block body %}
+<div class="portal">
+  {% include "_admin_sidebar.html" %}
+  <main class="content">
+    <h1>Whiteboards</h1>
+    <p class="muted">Pick a student to open their whiteboard. It's the exact same live board they see -- anything you draw or type shows up for them instantly, and vice versa.</p>
+
+    {% if students %}
+      <div class="student-board-list">
+        {% for s in students %}
+          <a class="card student-board-row" href="{{ url_for('admin_student_whiteboard', user_id=s.id) }}">
+            {{ s.name or s.email }}
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="muted">No students have signed in yet.</p>
+    {% endif %}
+  </main>
+</div>
+{% endblock %}

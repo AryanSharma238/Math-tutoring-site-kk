@@ -68,6 +68,19 @@ class StudentProfile(db.Model):
     class_weekday = db.Column(db.Integer, nullable=True)
     class_time = db.Column(db.String(5), nullable=True)  # "HH:MM", 24-hour, in `timezone`
 
+    # This student's personal Excalidraw collaboration room -- generated once (see
+    # _ensure_whiteboard in app.py) and reused forever after, so both the student and the
+    # admin always land in the same live room and see each other's edits in real time via
+    # Excalidraw's own collaboration backend (no custom sync code needed on our end).
+    whiteboard_room = db.Column(db.String(32), nullable=True)
+    whiteboard_key = db.Column(db.String(32), nullable=True)
+
+    @property
+    def whiteboard_url(self):
+        if not self.whiteboard_room or not self.whiteboard_key:
+            return None
+        return f"https://excalidraw.com/#room={self.whiteboard_room},{self.whiteboard_key}"
+
     curriculum_files = db.relationship(
         "CurriculumFile", backref="profile", cascade="all, delete-orphan",
         order_by="CurriculumFile.uploaded_at.desc()",

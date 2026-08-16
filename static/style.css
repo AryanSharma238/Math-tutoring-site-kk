@@ -798,6 +798,47 @@ img.curriculum-viewer {
   margin: 0;
 }
 
+/* Whiteboard -- a full working canvas, not a small preview, so it gets most of the viewport
+   instead of being constrained like the slideshow embed. */
+.whiteboard-content { display: flex; flex-direction: column; }
+
+.whiteboard-embed-wrap {
+  position: relative;
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 70vh;
+  margin-top: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.whiteboard-embed-frame {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.student-board-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+.student-board-row {
+  display: block;
+  text-decoration: none;
+  color: var(--text);
+  font-weight: 600;
+}
+.student-board-row:hover { border-color: #4f46e5; }
+
 .quiz-choices {
   margin-top: 0.75rem;
   display: flex;

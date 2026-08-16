@@ -2,6 +2,7 @@ import json
 import math
 import os
 import re
+import secrets
 import threading
 import uuid
 from datetime import datetime, timedelta, timezone as dt_timezone
@@ -19,6 +20,13 @@ from supabase import create_client
 from models import CurriculumFile, Quiz, SiteEmbed, StudentProfile, TodoItem, User, db
 
 GITHUB_REPO = "AryanSharma238/Math-tutoring-site-kk"
+
+# Video call: one fixed Jitsi Meet room shared by the admin and every student. Since the admin
+# only ever runs one class at a time, everyone joining the same room is exactly the desired
+# behavior -- no per-student room bookkeeping needed. meet.jit.si is Jitsi's free public server
+# (no signup, unlimited use); the room name just needs to be unique enough that a stranger
+# wouldn't guess it. Override via env var if you ever want to rotate it.
+CLASS_CALL_ROOM = os.environ.get("CLASS_CALL_ROOM", "M2Channel-AryanSharma-MathTutoring-9f3a")
 
 # In-memory quiz-generation job store. Generation runs in a background thread so the
 # HTTP request that kicks it off returns instantly -- this avoids Render's platform
@@ -492,6 +500,8 @@ _PENDING_COLUMN_MIGRATIONS = [
     # app's new profile_id-only inserts) don't hit a NOT NULL violation.
     "ALTER TABLE site_embeds ADD COLUMN profile_id INTEGER",
     "ALTER TABLE site_embeds ALTER COLUMN slot DROP NOT NULL",
+    "ALTER TABLE student_profiles ADD COLUMN whiteboard_room VARCHAR(32)",
+    "ALTER TABLE student_profiles ADD COLUMN whiteboard_key VARCHAR(32)",
 ]
 
 
@@ -653,6 +663,16 @@ def register_routes(app):
         session.clear()
         return redirect(url_for("home"))
 
+    def _ensure_whiteboard(profile):
+        """Generate this student's Excalidraw collaboration room the first time anyone (student
+        or admin) opens their whiteboard, then reuse it forever -- same room = same live board
+        for both sides, persisted via Excalidraw's own backend, not ours."""
+        if not profile.whiteboard_room or not profile.whiteboard_key:
+            profile.whiteboard_room = secrets.token_hex(10)
+            profile.whiteboard_key = secrets.token_urlsafe(16)
+            db.session.commit()
+        return profile.whiteboard_url
+
     @app.route("/dashboard")
     @login_required
     def dashboard():
@@ -661,6 +681,7 @@ def register_routes(app):
             students = User.query.filter_by(is_admin=False).order_by(User.created_at).all()
             return render_template(
                 "admin_dashboard.html", user=user, students=students, active="dashboard",
+                class_call_room=CLASS_CALL_ROOM,
             )
 
         profile = user.profile
@@ -670,6 +691,7 @@ def register_routes(app):
         return render_template(
             "student_dashboard.html", user=user, profile=profile,
             next_class=profile.next_class, active="dashboard",
+            class_call_room=CLASS_CALL_ROOM,
         )
 
     @app.route("/admin/assign-quiz")
@@ -679,6 +701,42 @@ def register_routes(app):
         students = User.query.filter_by(is_admin=False).order_by(User.created_at).all()
         return render_template(
             "admin_assign_quiz.html", user=current_user(), students=students, active="assign-quiz",
+        )
+
+    @app.route("/whiteboard")
+    @login_required
+    def whiteboard():
+        user = current_user()
+        if user.is_admin:
+            return redirect(url_for("admin_whiteboards"))
+        profile = user.profile
+        if not profile or not profile.setup_complete:
+            return render_template("waiting.html", user=user)
+        board_url = _ensure_whiteboard(profile)
+        return render_template(
+            "whiteboard.html", user=user, board_url=board_url, active="whiteboard",
+        )
+
+    @app.route("/admin/whiteboards")
+    @login_required
+    @admin_required
+    def admin_whiteboards():
+        students = User.query.filter_by(is_admin=False).order_by(User.created_at).all()
+        return render_template(
+            "admin_whiteboards.html", user=current_user(), students=students, active="whiteboards",
+        )
+
+    @app.route("/admin/student/<int:user_id>/whiteboard")
+    @login_required
+    @admin_required
+    def admin_student_whiteboard(user_id):
+        student = User.query.filter_by(id=user_id, is_admin=False).first_or_404()
+        admin = current_user()
+        students = User.query.filter_by(is_admin=False).order_by(User.created_at).all()
+        board_url = _ensure_whiteboard(student.profile)
+        return render_template(
+            "admin_whiteboard_view.html", user=admin, students=students, student=student,
+            board_url=board_url,
         )
 
     @app.route("/admin/student/<int:user_id>/embed", methods=["POST"])
