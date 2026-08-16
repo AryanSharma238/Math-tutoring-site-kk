@@ -2332,10 +2332,10 @@ img.curriculum-viewer {
   position: fixed;
   bottom: 24px;
   right: 24px;
-  width: 180px;
-  height: 288px;
-  min-width: 180px;
-  min-height: 240px;
+  width: 225px;
+  height: 360px;
+  min-width: 225px;
+  min-height: 300px;
   max-width: 95vw;
   max-height: 90vh;
   background: var(--card);
