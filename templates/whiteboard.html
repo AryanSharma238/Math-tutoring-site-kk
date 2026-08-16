@@ -1,31 +1,50 @@
 {% extends "base.html" %}
-{% block title %}Whiteboard{% endblock %}
+{% block title %}Collaborative Whiteboard{% endblock %}
 {% block body %}
 <div class="portal">
-  {% include "_student_sidebar.html" %}
-  <main class="content whiteboard-content">
-    <h1>Whiteboard</h1>
-    <p class="muted small">
-      Your own notes board(s) -- draw, highlight, upload images, and write freely. Your
-      teacher can open the same board and edit it live with you. Excalidraw's live
-      collaboration doesn't work properly inside an embedded frame (its own known
-      limitation), so each page opens in its own tab instead -- once open, it's a real live
-      board, not a static preview. Use the board's own menu (top-left inside the board) to
-      export your notes as a PDF or image.
-    </p>
+  {% if user.is_admin %}
+    {% include "_admin_sidebar.html" %}
+  {% else %}
+    {% include "_student_sidebar.html" %}
+  {% endif %}
 
-    {% if pages %}
-      <div class="wb-page-list">
-        {% for p in pages %}
-          <a class="card wb-page-card" href="{{ p.src_url }}" target="_blank" rel="noopener">
-            {{ p.title or ("Page " ~ loop.index) }}
-            <span class="muted small">Opens live &middot;</span>
-          </a>
-        {% endfor %}
-      </div>
-    {% else %}
-      <p class="muted">Your teacher hasn't set up a whiteboard page for you yet.</p>
+  <main class="content whiteboard-workspace">
+    {% if user.is_admin %}
+      <a href="{{ url_for('admin_whiteboards') }}" class="back-link">&larr; Back to students</a>
+      <p class="muted small">Live collaborative boards for {{ owner_user.name or owner_user.email }}.</p>
     {% endif %}
+    <h1>Collaborative Whiteboard</h1>
+
+    <div class="wb-topbar">
+      <div class="wb-presence" id="wbPresence">Connecting...</div>
+      <div class="wb-save" id="wbSaveStatus">Saved</div>
+    </div>
+
+    <section class="wb-canvas-wrap">
+      <div id="excalidrawRoot" class="wb-canvas"></div>
+    </section>
+
+    <section class="wb-board-strip-wrap">
+      <div class="wb-board-strip" id="wbBoardStrip"></div>
+      <div class="wb-board-actions">
+        <button type="button" id="wbAddBoardBtn">+ New page</button>
+      </div>
+    </section>
   </main>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<link rel="stylesheet" href="https://esm.sh/@excalidraw/excalidraw@0.18.0/dist/excalidraw.min.css" />
+<script>
+  window.WHITEBOARD_CONFIG = {
+    ownerUserId: {{ owner_user.id }},
+    ownerName: {{ (owner_user.name or owner_user.email)|tojson }},
+    viewerName: {{ (user.name or user.email)|tojson }},
+    supabaseUrl: {{ supabase_url|tojson }},
+    supabaseAnonKey: {{ supabase_anon_key|tojson }},
+    supabaseAccessToken: {{ supabase_access_token|tojson }},
+  };
+</script>
+<script type="module" src="{{ url_for('static', filename='whiteboard.js') }}"></script>
 {% endblock %}

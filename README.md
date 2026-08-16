@@ -45,6 +45,77 @@ full deletion later.
   (no separate file storage needed)
 - Quiz generation calls OpenRouter server-side using a free model
 
+## Collaborative Whiteboard
+
+The whiteboard uses **Excalidraw** as the actual drawing/editor canvas and stores board state in Supabase Postgres.
+
+- Each user has independent boards/pages (`Page 1`, `Page 2`, etc.).
+- Each board stores its own Excalidraw scene (`elements`, `appState`, `files`).
+- Switching boards loads that board's saved scene.
+- Changes auto-save with debouncing (not per-mouse-move writes).
+- Supabase Realtime listens to `boards` row updates so collaborators on the same board see updates without refresh.
+- Supabase Auth identities are mapped to local users (`users.supabase_uid`) and used in board RLS policies.
+- Presence is shown via Supabase Realtime presence channels.
+
+### Whiteboard database schema
+
+- `boards`
+  - `id` (UUID string)
+  - `owner_user_id` (FK -> `users.id`)
+  - `name`
+  - `position` (board order)
+  - `data_json` (current Excalidraw scene snapshot)
+  - `thumbnail_svg` (optional preview)
+  - `created_at`, `updated_at`
+- `board_collaborators`
+  - `id`
+  - `board_id` (FK -> `boards.id`)
+  - `user_id` (FK -> `users.id`)
+  - `permission` (`owner`/`write`)
+  - `created_at`
+
+The app creates these tables via SQLAlchemy `db.create_all()` and applies indexes/RLS policy SQL in startup migrations.
+
+### Whiteboard RLS policies
+
+RLS is enabled on `boards` and `board_collaborators`.
+
+- `boards` SELECT: owner or explicit collaborator
+- `boards` INSERT: authenticated owner only
+- `boards` UPDATE: owner or collaborator with write permission
+- `boards` DELETE: owner only
+- `board_collaborators` SELECT: collaborator themselves or board owner
+- `board_collaborators` INSERT/UPDATE/DELETE: board owner only
+
+Policies use `auth.uid()` matched against `users.supabase_uid`.
+
+### Realtime and saving behavior
+
+1. Excalidraw updates local scene immediately.
+2. Client debounces persistence and writes latest scene to `boards.data_json`.
+3. Supabase Realtime emits board-row updates.
+4. Other clients on the same board receive updates and apply the latest scene.
+5. Presence channel tracks active users on the same board.
+
+### Supabase setup for whiteboard
+
+1. Create a Supabase project (free tier is fine).
+2. Set `DATABASE_URL` to your Supabase Postgres URI.
+3. Set `SUPABASE_URL` and `SUPABASE_ANON_KEY`.
+4. Run the app once so startup migrations create/upgrade whiteboard tables and policies.
+5. In Supabase Dashboard:
+   - Ensure Realtime is enabled for `boards` table (Database -> Replication / Realtime table toggle).
+   - Keep RLS enabled on `boards` and `board_collaborators`.
+6. Optional storage bucket for large whiteboard assets:
+   - Create a private bucket (for example `whiteboard-assets`) if you extend uploads beyond scene JSON.
+   - Store references/URLs in board data, not raw large binaries in table columns.
+
+### Free-tier considerations
+
+- Main usage is Postgres row updates (`boards`) plus Realtime subscriptions/presence.
+- Debounced saves reduce write volume versus per-pointer-event writes.
+- Large image-heavy scenes may increase row size and realtime payloads; keep uploads modest on free tier.
+
 ## Environment variables
 
 | Variable | Required | Purpose |
