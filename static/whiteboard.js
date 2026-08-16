@@ -14,10 +14,9 @@
 // WB.mount(rootEl) once per container the first time it actually needs to be visible; it's a
 // no-op on a container that's already mounted.
 //
-// Sync model: every 750ms, poll GET /api/whiteboard/pages/<id>/sync?since=<last poll time> for
-// whatever changed on the current page since the last poll, and apply just those changes to
-// the local canvas. This is "near-real-time" (a second or two of latency), not a push-based
-// websocket -- see the README for why, given this app's existing architecture.
+// Sync model: listen for push events when available, and fall back to fast polling of
+// GET /api/whiteboard/pages/<id>/sync?since=<last poll time> for anything missed. That keeps
+// the board feeling live without depending on a single transport.
 // ============================================================================================
 
 window.WB = (function () {
@@ -79,6 +78,7 @@ window.WB = (function () {
     let syncTimer = null;
     let suppressEvents = false; // true while applying remote changes, so we don't echo them back
     const recentlySent = new Map(); // elementId -> timestamp, to avoid jitter from our own echoes
+    let eventSource = null;
 
     const undoStack = [];
     const redoStack = [];
@@ -800,15 +800,36 @@ window.WB = (function () {
 
     function startSync() {
       stopSync();
-      syncTimer = setInterval(pollSync, 750);
-      pagesSyncTimer = setInterval(pollPages, 1500);
+      syncTimer = setInterval(pollSync, 250);
+      pagesSyncTimer = setInterval(pollPages, 1000);
+      startEventStream();
     }
 
     function stopSync() {
       if (syncTimer) clearInterval(syncTimer);
       if (pagesSyncTimer) clearInterval(pagesSyncTimer);
+      if (eventSource) eventSource.close();
       syncTimer = null;
       pagesSyncTimer = null;
+      eventSource = null;
+    }
+
+    function startEventStream() {
+      if (!currentPageId || typeof EventSource === "undefined") return;
+      try {
+        eventSource = new EventSource(`/api/whiteboard/pages/${currentPageId}/events`);
+        eventSource.addEventListener("change", () => {
+          pollSync();
+        });
+        eventSource.onerror = () => {
+          if (eventSource) {
+            eventSource.close();
+            eventSource = null;
+          }
+        };
+      } catch {
+        eventSource = null;
+      }
     }
 
     function pollSync() {

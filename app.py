@@ -1212,6 +1212,25 @@ def register_routes(app):
             abort(403)
         return send_file(BytesIO(record.data), mimetype=record.mimetype, download_name=record.filename)
 
+    @app.route("/homework/<int:file_id>/view")
+    @login_required
+    def view_homework(file_id):
+        record = HomeworkFile.query.get_or_404(file_id)
+        user = current_user()
+        if not user.is_admin and (not user.profile or user.profile.id != record.profile_id):
+            abort(403)
+        return render_template("view_homework.html", user=user, homework=record, active="quizzes")
+
+    @app.route("/homework/<int:file_id>/submit", methods=["POST"])
+    @login_required
+    def submit_homework(file_id):
+        record = HomeworkFile.query.get_or_404(file_id)
+        user = current_user()
+        if not user.is_admin and (not user.profile or user.profile.id != record.profile_id):
+            abort(403)
+        flash("Homework submitted.")
+        return redirect(url_for("dashboard"))
+
     # --- Curriculum file serving ---
 
     @app.route("/curriculum/<int:file_id>")

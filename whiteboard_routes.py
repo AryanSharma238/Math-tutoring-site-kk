@@ -20,6 +20,8 @@ Architecture, in short:
 
 import json
 import uuid
+import queue
+import threading
 from datetime import datetime, timezone as dt_timezone
 
 from flask import abort, jsonify, redirect, render_template, request, url_for
@@ -31,6 +33,37 @@ from models import (
 
 MAX_IMAGE_BYTES = 8 * 1024 * 1024  # 8MB
 ALLOWED_IMAGE_EXTS = {"png", "jpg", "jpeg", "webp"}
+_page_event_listeners = {}
+_page_event_lock = threading.Lock()
+
+
+def _page_event_queue(page_id):
+    with _page_event_lock:
+        listeners = _page_event_listeners.setdefault(page_id, [])
+        q = queue.Queue(maxsize=50)
+        listeners.append(q)
+        return q
+
+
+def _broadcast_page_event(page_id, event):
+    with _page_event_lock:
+        listeners = list(_page_event_listeners.get(page_id, []))
+    for q in listeners:
+        try:
+            q.put_nowait(event)
+        except queue.Full:
+            pass
+
+
+def _drop_page_event_queue(page_id, q):
+    with _page_event_lock:
+        listeners = _page_event_listeners.get(page_id)
+        if not listeners:
+            return
+        if q in listeners:
+            listeners.remove(q)
+        if not listeners:
+            _page_event_listeners.pop(page_id, None)
 
 
 def ensure_workspace(profile):
@@ -151,6 +184,7 @@ def register_whiteboard_routes(app):
         page = WhiteboardPage(workspace_id=ws.id, name=name, position=next_position)
         db.session.add(page)
         db.session.commit()
+        _broadcast_page_event(page.id, {"type": "page-created"})
         return jsonify(_page_json(page)), 201
 
     @app.route("/api/whiteboard/<int:workspace_id>/pages/<int:page_id>", methods=["PATCH"])
@@ -180,6 +214,7 @@ def register_whiteboard_routes(app):
                     p.position = i
 
         db.session.commit()
+        _broadcast_page_event(page.id, {"type": "page-updated"})
         return jsonify(_page_json(page))
 
     @app.route("/api/whiteboard/<int:workspace_id>/pages/<int:page_id>", methods=["DELETE"])
@@ -196,6 +231,7 @@ def register_whiteboard_routes(app):
         for i, p in enumerate(remaining):
             p.position = i
         db.session.commit()
+        _broadcast_page_event(page.id, {"type": "page-deleted"})
         return jsonify({"pages": [_page_json(p) for p in remaining]})
 
     # ---------------- Elements API ----------------
@@ -226,6 +262,28 @@ def register_whiteboard_routes(app):
             "full_sync": since is None,
         })
 
+    @app.route("/api/whiteboard/pages/<int:page_id>/events", methods=["GET"])
+    @login_required
+    def api_stream_page_events(page_id):
+        page = _get_page_or_404(page_id)
+        q = _page_event_queue(page.id)
+
+        def _events():
+            try:
+                yield "retry: 1000\n\n"
+                while True:
+                    try:
+                        event = q.get(timeout=25)
+                    except queue.Empty:
+                        yield "event: ping\ndata: {}\n\n"
+                        continue
+                    yield f"event: change\ndata: {json.dumps(event)}\n\n"
+            finally:
+                _drop_page_event_queue(page.id, q)
+
+        from flask import Response, stream_with_context
+        return Response(stream_with_context(_events()), mimetype="text/event-stream")
+
     @app.route("/api/whiteboard/pages/<int:page_id>/elements", methods=["POST"])
     @login_required
     def api_create_element(page_id):
@@ -252,6 +310,7 @@ def register_whiteboard_routes(app):
             )
             db.session.add(element)
         db.session.commit()
+        _broadcast_page_event(page.id, {"type": "element-updated", "id": element.id})
         return jsonify(_element_json(element)), 201
 
     @app.route("/api/whiteboard/elements/<string:element_id>", methods=["PATCH"])
@@ -263,6 +322,7 @@ def register_whiteboard_routes(app):
             return jsonify({"error": "Missing data."}), 400
         element.data = json.dumps(data["data"])
         db.session.commit()
+        _broadcast_page_event(element.page_id, {"type": "element-updated", "id": element.id})
         return jsonify(_element_json(element))
 
     @app.route("/api/whiteboard/elements/<string:element_id>", methods=["DELETE"])
@@ -273,6 +333,7 @@ def register_whiteboard_routes(app):
         db.session.delete(element)
         db.session.add(WhiteboardDeletion(page_id=page_id, element_id=element_id))
         db.session.commit()
+        _broadcast_page_event(page_id, {"type": "element-deleted", "id": element_id})
         return jsonify({"ok": True})
 
     # ---------------- Image upload ----------------

@@ -54,26 +54,29 @@
 
       <div class="assignments-panel" data-panel="assigned">
         <div class="assignment-cover-list" id="assignedList">
-          {% for q in assigned_quizzes %}
-            <a href="{{ url_for('take_quiz', quiz_id=q.id) }}" class="assignment-cover" data-seed="{{ q.id }}">
-              <div class="assignment-cover-art"></div>
-              <div class="assignment-cover-body">
-                <span class="assignment-cover-title">{{ q.title }}</span>
-                <span class="assignment-cover-count">{{ q.question_count }} question{{ 's' if q.question_count != 1 else '' }}</span>
-              </div>
-            </a>
+          {% if assigned_quizzes or profile.homework_files %}
+            {% for q in assigned_quizzes %}
+              <a href="{{ url_for('take_quiz', quiz_id=q.id) }}" class="assignment-cover" data-seed="{{ q.id }}">
+                <div class="assignment-cover-art"></div>
+                <div class="assignment-cover-body">
+                  <span class="assignment-cover-title">{{ q.title }}</span>
+                  <span class="assignment-cover-count">{{ q.question_count }} question{{ 's' if q.question_count != 1 else '' }}</span>
+                </div>
+              </a>
+            {% endfor %}
+            {% for homework in profile.homework_files %}
+              <a href="{{ url_for('view_homework', file_id=homework.id) }}" class="assignment-cover homework-cover" data-seed="{{ homework.id + 9000 }}">
+                <div class="assignment-cover-art"></div>
+                <div class="assignment-cover-body">
+                  <span class="assignment-cover-title">{{ homework.title }}</span>
+                  <span class="assignment-cover-count">PDF homework</span>
+                </div>
+              </a>
+            {% endfor %}
           {% else %}
             <p class="muted">Nothing assigned right now.</p>
-          {% endfor %}
+          {% endif %}
         </div>
-        {% if profile.homework_files %}
-          <div class="homework-list">
-            <h4>Homework PDFs</h4>
-            {% for homework in profile.homework_files %}
-              <a class="homework-file" href="{{ url_for('serve_homework', file_id=homework.id) }}" target="_blank">{{ homework.title }} <span>Open PDF</span></a>
-            {% endfor %}
-          </div>
-        {% endif %}
       </div>
 
       <div class="assignments-panel" data-panel="completed" hidden>
@@ -123,7 +126,7 @@
 
 <button type="button" class="whiteboard-pull-tab" id="whiteboardPullTab" aria-controls="studentWhiteboard" aria-expanded="false">Whiteboard <span>←</span></button>
 <aside class="student-whiteboard-drawer" id="studentWhiteboard" aria-hidden="true">
-  <div class="student-whiteboard-drawer-head"><strong>Whiteboard</strong><button type="button" id="closeWhiteboard" aria-label="Close whiteboard">→</button></div>
+  <div class="student-whiteboard-drawer-head"><strong>Whiteboard</strong><button type="button" id="closeWhiteboard" aria-label="Close whiteboard">←</button></div>
   {% include "_whiteboard_editor.html" %}
 </aside>
 
