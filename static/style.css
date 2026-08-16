@@ -457,6 +457,13 @@ button {
 .admin-student-whiteboard-wrap { height: 640px; }
 .admin-student-whiteboard-wrap .wb-embed { height: 100%; }
 
+.assignment-tools-card > h3 { margin-bottom: 1rem; }
+.assignment-tools-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(260px, .85fr); gap: 1.25rem; }
+.assignment-tool { min-width: 0; padding: 1rem; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); }
+.assignment-tool h4 { margin-top: 0; }
+.assignment-tool .quiz-list { max-height: 220px; overflow-y: auto; }
+@media (max-width: 800px) { .assignment-tools-grid { grid-template-columns: 1fr; } }
+
 .dashboard-counter { min-height: 150px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border-radius: 12px; background: linear-gradient(135deg, #eef2ff, #f5f3ff); color: #3730a3; }
 .dashboard-counter span { font-size: 1rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; }
 .dashboard-counter strong { font-size: clamp(3.9rem, 10vw, 7rem); line-height: 1; font-weight: 800; letter-spacing: -0.07em; font-family: ui-rounded, "Avenir Next", system-ui, sans-serif; }

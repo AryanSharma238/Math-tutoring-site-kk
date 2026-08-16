@@ -80,40 +80,70 @@
     </div>
 
     <div class="admin-student-panel" data-panel="workspace" hidden>
-      <section class="card">
-        <h3>Assign a quiz</h3>
-        <form id="quizGenerateForm" class="form-grid">
-          <label>Topic / instructions
-            <textarea name="topic" rows="3" placeholder="e.g. 10-question quiz on quadratic formula, mixed difficulty"></textarea>
-          </label>
-          <label>How many questions
-            <input type="number" name="count" min="1" max="25" value="5">
-          </label>
-          <button type="submit" id="generateQuizBtn">Generate quiz</button>
-        </form>
-        <p class="quiz-status" id="quizStatus"></p>
+      <section class="card assignment-tools-card">
+        <h3>Assign work</h3>
+        <div class="assignment-tools-grid">
+          <div class="assignment-tool">
+            <h4>AI quiz maker</h4>
+            <form id="quizGenerateForm" class="form-grid">
+              <label>Topic / instructions
+                <textarea name="topic" rows="3" placeholder="e.g. 10-question quiz on quadratic formula, mixed difficulty"></textarea>
+              </label>
+              <label>How many questions
+                <input type="number" name="count" min="1" max="25" value="5">
+              </label>
+              <button type="submit" id="generateQuizBtn">Generate quiz</button>
+            </form>
+            <p class="quiz-status" id="quizStatus"></p>
 
-        <div id="quizPreviewWrap" hidden>
-          <h4>Review before sending</h4>
-          <p class="muted small">Check the questions below. Nothing is sent to the student until you click "Send to student".</p>
-          <div id="quizPreview"></div>
-          <button type="button" id="sendQuizBtn">Send to student</button>
-          <button type="button" id="discardQuizBtn" class="secondary-btn">Discard</button>
-        </div>
-
-        <h4>Assigned quizzes</h4>
-        <div class="quiz-list" id="assignedQuizList">
-          {% for q in profile.quizzes %}
-            <div class="quiz-row">
-              <span class="quiz-row-count">{{ q.question_count }} question{{ 's' if q.question_count != 1 else '' }}</span>
-              <span class="quiz-row-title">{{ q.title }}</span>
-              <form method="POST" action="{{ url_for('admin_student_quiz_delete', user_id=student.id, quiz_id=q.id) }}" class="inline-form" onsubmit="return confirm('Remove this quiz?');">
-                <button type="submit" class="link-btn">remove</button>
-              </form>
+            <div id="quizPreviewWrap" hidden>
+              <h4>Review before sending</h4>
+              <p class="muted small">Check the questions below. Nothing is sent until you click “Send to student”.</p>
+              <div id="quizPreview"></div>
+              <button type="button" id="sendQuizBtn">Send to student</button>
+              <button type="button" id="discardQuizBtn" class="secondary-btn">Discard</button>
             </div>
-          {% else %}
-            <p class="muted small">No quizzes assigned yet.</p>
-          {% endfor %}
+
+            <h4>Assigned quizzes</h4>
+            <div class="quiz-list" id="assignedQuizList">
+              {% for q in profile.quizzes %}
+                <div class="quiz-row">
+                  <span class="quiz-row-count">{{ q.question_count }} question{{ 's' if q.question_count != 1 else '' }}</span>
+                  <span class="quiz-row-title">{{ q.title }}</span>
+                  <form method="POST" action="{{ url_for('admin_student_quiz_delete', user_id=student.id, quiz_id=q.id) }}" class="inline-form" onsubmit="return confirm('Remove this quiz?');">
+                    <button type="submit" class="link-btn">remove</button>
+                  </form>
+                </div>
+              {% else %}
+                <p class="muted small">No quizzes assigned yet.</p>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="assignment-tool">
+            <h4>PDF homework</h4>
+            <p class="muted small">Give the assignment a name, then upload the PDF. It will appear beside quizzes for the student.</p>
+            <form method="POST" action="{{ url_for('admin_student_homework', user_id=student.id) }}" enctype="multipart/form-data" class="form-grid homework-upload-form">
+              <label>Homework name
+                <input type="text" name="title" placeholder="Chapter 3 practice" required>
+              </label>
+              <label>PDF file
+                <input type="file" name="homework" accept="application/pdf,.pdf" required>
+              </label>
+              <button type="submit">Assign PDF</button>
+            </form>
+            <h4>Assigned PDFs</h4>
+            <div class="quiz-list">
+              {% for homework in profile.homework_files %}
+                <div class="quiz-row">
+                  <span class="quiz-row-title">{{ homework.title }}</span>
+                  <a href="{{ url_for('view_homework', file_id=homework.id) }}" target="_blank" class="link-btn">open</a>
+                </div>
+              {% else %}
+                <p class="muted small">No PDFs assigned yet.</p>
+              {% endfor %}
+            </div>
+          </div>
         </div>
       </section>
 
@@ -124,15 +154,6 @@
         </div>
       </section>
 
-      <section class="card">
-        <h3>Assign PDF homework</h3>
-        <p class="muted small">Give the assignment a name, then upload the PDF for this student.</p>
-        <form method="POST" action="{{ url_for('admin_student_homework', user_id=student.id) }}" enctype="multipart/form-data" class="form-row homework-upload-form">
-          <input type="text" name="title" placeholder="Homework name" required>
-          <input type="file" name="homework" accept="application/pdf,.pdf" required>
-          <button type="submit">Assign PDF</button>
-        </form>
-      </section>
     </div>
   </main>
 </div>
