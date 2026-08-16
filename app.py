@@ -469,6 +469,13 @@ _PENDING_COLUMN_MIGRATIONS = [
     "ALTER TABLE quizzes ADD COLUMN answers_json TEXT",
     "ALTER TABLE student_profiles ADD COLUMN classes_left INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE quizzes ADD COLUMN is_student_created BOOLEAN NOT NULL DEFAULT false",
+    "ALTER TABLE student_profiles ADD COLUMN class_weekday INTEGER",
+    "ALTER TABLE student_profiles ADD COLUMN class_time VARCHAR(5)",
+    # site_embeds used to be keyed by a required "slot" string; it's now one row per student
+    # profile instead. Add the new column and relax the old one so existing rows (and the
+    # app's new profile_id-only inserts) don't hit a NOT NULL violation.
+    "ALTER TABLE site_embeds ADD COLUMN profile_id INTEGER",
+    "ALTER TABLE site_embeds ALTER COLUMN slot DROP NOT NULL",
 ]
 
 
