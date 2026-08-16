@@ -3,92 +3,258 @@
 {% block body %}
 <div class="portal">
   {% include "_admin_sidebar.html" %}
-  <main class="content">
+  <main class="content content-wide">
     <h1>{{ student.name or student.email }}</h1>
     {% if not profile.setup_complete %}
       <p class="notice">This student hasn't been set up yet -- they'll see a waiting screen until you save profile info below.</p>
     {% endif %}
 
-    <section class="card">
-      <h3>Profile</h3>
-      <form method="POST" action="{{ url_for('admin_student_update', user_id=student.id) }}" class="form-grid">
-        <label>Student name
-          <input type="text" name="student_name" value="{{ student.name or '' }}" placeholder="Jane Doe">
-        </label>
-        <label>Course
-          <input type="text" name="course_name" value="{{ profile.course_name or '' }}" placeholder="Algebra 2">
-        </label>
-        <label>Student timezone
-          <select name="timezone">
-            {% for tz in timezones %}
-              <option value="{{ tz }}" {{ "selected" if tz == profile.timezone else "" }}>{{ tz }}</option>
+    <div class="admin-student-tabs">
+      <button type="button" class="admin-student-tab active" data-tab="profile">Profile</button>
+      <button type="button" class="admin-student-tab" data-tab="workspace">Workspace</button>
+    </div>
+
+    <div class="admin-student-panel" data-panel="profile">
+      <section class="card">
+        <h3>Profile</h3>
+        <form method="POST" action="{{ url_for('admin_student_update', user_id=student.id) }}" class="form-grid">
+          <label>Student name
+            <input type="text" name="student_name" value="{{ student.name or '' }}" placeholder="Jane Doe">
+          </label>
+          <label>Course
+            <input type="text" name="course_name" value="{{ profile.course_name or '' }}" placeholder="Algebra 2">
+          </label>
+          <label>Student timezone
+            <select name="timezone">
+              {% for tz in timezones %}
+                <option value="{{ tz }}" {{ "selected" if tz == profile.timezone else "" }}>{{ tz }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <button type="submit">Save profile</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h3>Curriculum</h3>
+        {% if profile.curriculum_files %}
+          <ul class="file-list">
+            {% for f in profile.curriculum_files %}
+              <li><a href="{{ url_for('serve_curriculum', file_id=f.id) }}" target="_blank">{{ f.filename }}</a> <span class="muted small">{{ f.uploaded_at.strftime('%Y-%m-%d %H:%M') }} UTC</span></li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+        <form method="POST" action="{{ url_for('admin_student_curriculum', user_id=student.id) }}" enctype="multipart/form-data" class="form-row">
+          <input type="file" name="curriculum" accept=".pdf,.jpg,.jpeg,.png" required>
+          <button type="submit">Upload</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h3>Weekly class times</h3>
+        <p class="muted small">Add as many recurring weekly slots as needed (e.g. Tuesdays AND Thursdays) -- "next class" on the student's dashboard always computes the soonest one automatically.</p>
+        {% if profile.schedule_slots %}
+          <ul class="file-list">
+            {% for slot in profile.schedule_slots %}
+              {% set day_names = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'] %}
+              <li>
+                {{ day_names[slot.weekday] }} at {{ slot.time }} ({{ profile.timezone }})
+                <form method="POST" action="{{ url_for('admin_student_delete_schedule_slot', user_id=student.id, slot_id=slot.id) }}" class="inline-form">
+                  <button type="submit" class="link-btn">remove</button>
+                </form>
+              </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+        <form method="POST" action="{{ url_for('admin_student_add_schedule_slot', user_id=student.id) }}" class="form-row">
+          <select name="class_weekday">
+            {% for i, day in [(0,'Monday'),(1,'Tuesday'),(2,'Wednesday'),(3,'Thursday'),(4,'Friday'),(5,'Saturday'),(6,'Sunday')] %}
+              <option value="{{ i }}">{{ day }}</option>
             {% endfor %}
           </select>
-        </label>
-        <button type="submit">Save profile</button>
-      </form>
-    </section>
+          <input type="time" name="class_time" required>
+          <span class="muted small">in {{ profile.timezone }} (set above under Profile)</span>
+          <button type="submit">Add class time</button>
+        </form>
+      </section>
+    </div>
 
-    <section class="card">
-      <h3>Curriculum</h3>
-      {% if profile.curriculum_files %}
-        <ul class="file-list">
-          {% for f in profile.curriculum_files %}
-            <li><a href="{{ url_for('serve_curriculum', file_id=f.id) }}" target="_blank">{{ f.filename }}</a> <span class="muted small">{{ f.uploaded_at.strftime('%Y-%m-%d %H:%M') }} UTC</span></li>
-          {% endfor %}
-        </ul>
-      {% endif %}
-      <form method="POST" action="{{ url_for('admin_student_curriculum', user_id=student.id) }}" enctype="multipart/form-data" class="form-row">
-        <input type="file" name="curriculum" accept=".pdf,.jpg,.jpeg,.png" required>
-        <button type="submit">Upload</button>
-      </form>
-    </section>
+    <div class="admin-student-panel" data-panel="workspace" hidden>
+      <section class="card">
+        <h3>Assign a quiz</h3>
+        <form id="quizGenerateForm" class="form-grid">
+          <label>Topic / instructions
+            <textarea name="topic" rows="3" placeholder="e.g. 10-question quiz on quadratic formula, mixed difficulty"></textarea>
+          </label>
+          <label>How many questions
+            <input type="number" name="count" min="1" max="25" value="5">
+          </label>
+          <button type="submit" id="generateQuizBtn">Generate quiz</button>
+        </form>
+        <p class="quiz-status" id="quizStatus"></p>
 
-    <section class="card">
-      <h3>Weekly class times</h3>
-      <p class="muted small">Add as many recurring weekly slots as needed (e.g. Tuesdays AND Thursdays) -- "next class" on the student's dashboard always computes the soonest one automatically.</p>
-      {% if profile.schedule_slots %}
-        <ul class="file-list">
-          {% for slot in profile.schedule_slots %}
-            {% set day_names = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'] %}
-            <li>
-              {{ day_names[slot.weekday] }} at {{ slot.time }} ({{ profile.timezone }})
-              <form method="POST" action="{{ url_for('admin_student_delete_schedule_slot', user_id=student.id, slot_id=slot.id) }}" class="inline-form">
+        <div id="quizPreviewWrap" hidden>
+          <h4>Review before sending</h4>
+          <p class="muted small">Check the questions below. Nothing is sent to the student until you click "Send to student".</p>
+          <div id="quizPreview"></div>
+          <button type="button" id="sendQuizBtn">Send to student</button>
+          <button type="button" id="discardQuizBtn" class="secondary-btn">Discard</button>
+        </div>
+
+        <h4>Assigned quizzes</h4>
+        <div class="quiz-list" id="assignedQuizList">
+          {% for q in profile.quizzes %}
+            <div class="quiz-row">
+              <span class="quiz-row-count">{{ q.question_count }} question{{ 's' if q.question_count != 1 else '' }}</span>
+              <span class="quiz-row-title">{{ q.title }}</span>
+              <form method="POST" action="{{ url_for('admin_student_quiz_delete', user_id=student.id, quiz_id=q.id) }}" class="inline-form" onsubmit="return confirm('Remove this quiz?');">
                 <button type="submit" class="link-btn">remove</button>
               </form>
-            </li>
+            </div>
+          {% else %}
+            <p class="muted small">No quizzes assigned yet.</p>
           {% endfor %}
-        </ul>
-      {% endif %}
-      <form method="POST" action="{{ url_for('admin_student_add_schedule_slot', user_id=student.id) }}" class="form-row">
-        <select name="class_weekday">
-          {% for i, day in [(0,'Monday'),(1,'Tuesday'),(2,'Wednesday'),(3,'Thursday'),(4,'Friday'),(5,'Saturday'),(6,'Sunday')] %}
-            <option value="{{ i }}">{{ day }}</option>
-          {% endfor %}
-        </select>
-        <input type="time" name="class_time" required>
-        <span class="muted small">in {{ profile.timezone }} (set above under Profile)</span>
-        <button type="submit">Add class time</button>
-      </form>
-    </section>
+        </div>
+      </section>
 
-    <section class="card">
-      <h3>Quizzes</h3>
-      <p class="muted small">To assign a new quiz, use the <a href="{{ url_for('admin_assign_quiz') }}">Assign Quiz</a> tab and pick {{ student.name or student.email }} from the student dropdown.</p>
-      <div class="quiz-list" id="assignedQuizList">
-        {% for q in profile.quizzes %}
-          <div class="quiz-row">
-            <span class="quiz-row-count">{{ q.question_count }} question{{ 's' if q.question_count != 1 else '' }}</span>
-            <span class="quiz-row-title">{{ q.title }}</span>
-            <form method="POST" action="{{ url_for('admin_student_quiz_delete', user_id=student.id, quiz_id=q.id) }}" class="inline-form" onsubmit="return confirm('Remove this quiz?');">
-              <button type="submit" class="link-btn">remove</button>
-            </form>
-          </div>
-        {% else %}
-          <p class="muted small">No quizzes assigned yet.</p>
-        {% endfor %}
-      </div>
-    </section>
+      <section class="card admin-student-whiteboard-card">
+        <h3>Whiteboard</h3>
+        <div class="admin-student-whiteboard-wrap">
+          {% include "_whiteboard_editor.html" %}
+        </div>
+      </section>
+    </div>
   </main>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="{{ url_for('static', filename='whiteboard.js') }}"></script>
+{% endblock %}
+{% block scripts %}
+<script>
+  const adminTabs = document.querySelectorAll(".admin-student-tab");
+  const adminPanels = document.querySelectorAll(".admin-student-panel");
+  adminTabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      adminTabs.forEach((t) => t.classList.remove("active"));
+      tab.classList.add("active");
+      adminPanels.forEach((p) => { p.hidden = p.dataset.panel !== tab.dataset.tab; });
+      if (tab.dataset.tab === "workspace") {
+        const wbEl = document.querySelector('.admin-student-whiteboard-wrap .wb-embed');
+        if (wbEl) requestAnimationFrame(() => WB.mount(wbEl));
+      }
+    });
+  });
+
+  const quizForm = document.getElementById("quizGenerateForm");
+  const generateBtn = document.getElementById("generateQuizBtn");
+  const statusEl = document.getElementById("quizStatus");
+  const previewWrap = document.getElementById("quizPreviewWrap");
+  const previewEl = document.getElementById("quizPreview");
+  const sendBtn = document.getElementById("sendQuizBtn");
+  const discardBtn = document.getElementById("discardQuizBtn");
+
+  let pendingQuiz = null;
+
+  async function safeJson(resp) {
+    const text = await resp.text();
+    try {
+      return JSON.parse(text);
+    } catch {
+      throw new Error("Server returned an unexpected response (not JSON) -- likely a temporary server or network hiccup. Please try again.");
+    }
+  }
+
+  function pollJob(jobId) {
+    return new Promise((resolve, reject) => {
+      const check = async () => {
+        let data;
+        try {
+          const resp = await fetch(`/admin/student/{{ student.id }}/quiz/generate/status/${jobId}`);
+          data = await safeJson(resp);
+        } catch (err) {
+          reject(err);
+          return;
+        }
+        if (data.status === "pending") {
+          setTimeout(check, 2500);
+        } else if (data.status === "done") {
+          resolve(data.result);
+        } else {
+          reject(new Error(data.error || "Quiz generation failed."));
+        }
+      };
+      check();
+    });
+  }
+
+  quizForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    generateBtn.disabled = true;
+    statusEl.textContent = "Loading... generating quiz, this can take a couple of minutes for larger quizzes.";
+    previewWrap.hidden = true;
+
+    const formData = new FormData(quizForm);
+    try {
+      const startResp = await fetch("{{ url_for('admin_student_quiz_generate_start', user_id=student.id) }}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topic: formData.get("topic"),
+          count: formData.get("count"),
+        }),
+      });
+      const startData = await safeJson(startResp);
+      if (!startResp.ok || !startData.job_id) {
+        statusEl.textContent = startData.error || "Could not start quiz generation.";
+        return;
+      }
+
+      const result = await pollJob(startData.job_id);
+      pendingQuiz = result;
+      statusEl.textContent = `Generated ${result.questions.length} question(s). Review below.`;
+      renderQuizQuestions(result.questions, previewEl);
+      previewWrap.hidden = false;
+    } catch (err) {
+      statusEl.textContent = err.message;
+    } finally {
+      generateBtn.disabled = false;
+    }
+  });
+
+  sendBtn.addEventListener("click", async () => {
+    if (!pendingQuiz) return;
+    sendBtn.disabled = true;
+    statusEl.textContent = "Sending to student...";
+
+    try {
+      const resp = await fetch("{{ url_for('admin_student_quiz_assign', user_id=student.id) }}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(pendingQuiz),
+      });
+      const data = await safeJson(resp);
+      if (!resp.ok || data.error) {
+        statusEl.textContent = data.error || "Could not assign quiz.";
+        return;
+      }
+
+      statusEl.textContent = `Sent "${data.title}" to the student.`;
+      previewWrap.hidden = true;
+      pendingQuiz = null;
+      setTimeout(() => window.location.reload(), 600);
+    } catch (err) {
+      statusEl.textContent = `Error: ${err.message}`;
+    } finally {
+      sendBtn.disabled = false;
+    }
+  });
+
+  discardBtn.addEventListener("click", () => {
+    pendingQuiz = null;
+    previewWrap.hidden = true;
+    statusEl.textContent = "Discarded.";
+  });
+</script>
 {% endblock %}

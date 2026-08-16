@@ -42,16 +42,6 @@
   <div class="call-resize-handle" id="callResizeHandle"></div>
 </div>
 
-<!-- Whiteboard launcher: a small pull-tab on the right edge, present on every page. Clicking
-     it expands a fullscreen overlay with the live whiteboard; clicking again collapses it.
-     Shown/hidden and pointed at the right URL by JS (see initWhiteboardLauncher in app.js),
-     since which board to open (a student's own vs. the admin's student picker) and whether to
-     show it at all depends on who's logged in, which isn't available in every template. -->
-<button type="button" class="wb-launch-tab" id="wbLaunchTab" title="Whiteboard" hidden>Whiteboard</button>
-<div class="wb-launch-overlay" id="wbLaunchOverlay" hidden>
-  <iframe id="wbLaunchFrame" class="wb-launch-frame"></iframe>
-</div>
-
 <script src="{{ url_for('static', filename='app.js') }}"></script>
 {% block scripts %}{% endblock %}
 </body>

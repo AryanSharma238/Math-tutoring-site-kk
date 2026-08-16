@@ -772,23 +772,27 @@ def register_routes(app):
         if not profile or not profile.setup_complete:
             return render_template("waiting.html", user=user)
 
+        from whiteboard_routes import ensure_workspace
+        ws = ensure_workspace(profile)
+
         return render_template(
             "student_dashboard.html", user=user, profile=profile,
             next_class=profile.next_class,
             assigned_quizzes=profile.assigned_quizzes,
             completed_quizzes=profile.completed_quizzes,
+            workspace_id=ws.id,
             active="dashboard",
             class_call_url=CLASS_CALL_PARTICIPANT_URL,
         )
 
+    # Assigning a quiz and opening a whiteboard both moved onto each student's own page (as
+    # tabs), so a student no longer needs to be picked from a separate page first -- these
+    # just redirect there for any old links/bookmarks.
     @app.route("/admin/assign-quiz")
     @login_required
     @admin_required
     def admin_assign_quiz():
-        students = User.query.filter_by(is_admin=False).order_by(User.created_at).all()
-        return render_template(
-            "admin_assign_quiz.html", user=current_user(), students=students, active="assign-quiz",
-        )
+        return redirect(url_for("dashboard"))
 
     # ============ Whiteboard ============
     # See whiteboard_routes.py for the full route set (workspace/page/element CRUD, image
@@ -948,9 +952,14 @@ def register_routes(app):
         student = User.query.filter_by(id=user_id, is_admin=False).first_or_404()
         admin = current_user()
         students = User.query.filter_by(is_admin=False).order_by(User.created_at).all()
+
+        from whiteboard_routes import ensure_workspace
+        ws = ensure_workspace(student.profile)
+
         return render_template(
             "admin_student.html", user=admin, students=students, student=student,
             profile=student.profile, timezones=COMMON_TIMEZONES,
+            workspace_id=ws.id, class_call_url=CLASS_CALL_HOST_URL,
         )
 
     @app.route("/admin/student/<int:user_id>/update", methods=["POST"])

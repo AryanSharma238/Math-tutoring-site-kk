@@ -51,6 +51,7 @@
         <button type="button" class="assignments-tab active" data-tab="assigned">Assigned</button>
         <button type="button" class="assignments-tab" data-tab="completed">Completed</button>
         <button type="button" class="assignments-tab" data-tab="self-assign">Self-Assign Quizzes</button>
+        <button type="button" class="assignments-tab" data-tab="whiteboard">Whiteboard</button>
       </div>
 
       <div class="assignments-panel" data-panel="assigned">
@@ -70,24 +71,29 @@
       </div>
 
       <div class="assignments-panel" data-panel="completed" hidden>
-        {% if completed_quizzes %}
-          <form method="POST" action="{{ url_for('clear_all_completed_quizzes') }}"
-            onsubmit="return confirm('Clear all completed assignments? They\'ll move back to Assigned.');">
-            <button type="submit" class="secondary-btn">Clear all completed</button>
-          </form>
-        {% endif %}
-        <div class="assignment-cover-list" id="completedList">
-          {% for q in completed_quizzes %}
-            <a href="{{ url_for('take_quiz', quiz_id=q.id) }}" class="assignment-cover" data-seed="{{ q.id }}">
-              <div class="assignment-cover-art"></div>
-              <div class="assignment-cover-body">
-                <span class="assignment-cover-title">{{ q.title }}</span>
-                <span class="assignment-cover-count">{{ q.question_count }} question{{ 's' if q.question_count != 1 else '' }}</span>
-              </div>
-            </a>
+        <div class="completed-group">
+          {% if completed_quizzes %}
+            <div class="completed-group-header">
+              <span class="muted small">{{ completed_quizzes|length }} completed</span>
+              <form method="POST" action="{{ url_for('clear_all_completed_quizzes') }}"
+                onsubmit="return confirm('Clear all completed assignments? They\'ll move back to Assigned.');">
+                <button type="submit" class="secondary-btn">Clear all completed</button>
+              </form>
+            </div>
+            <div class="assignment-cover-list" id="completedList">
+              {% for q in completed_quizzes %}
+                <a href="{{ url_for('take_quiz', quiz_id=q.id) }}" class="assignment-cover" data-seed="{{ q.id }}">
+                  <div class="assignment-cover-art"></div>
+                  <div class="assignment-cover-body">
+                    <span class="assignment-cover-title">{{ q.title }}</span>
+                    <span class="assignment-cover-count">{{ q.question_count }} question{{ 's' if q.question_count != 1 else '' }}</span>
+                  </div>
+                </a>
+              {% endfor %}
+            </div>
           {% else %}
             <p class="muted">No completed assignments yet.</p>
-          {% endfor %}
+          {% endif %}
         </div>
       </div>
 
@@ -104,9 +110,17 @@
         </form>
         <p class="quiz-status" id="ownQuizStatus"></p>
       </div>
+
+      <div class="assignments-panel assignments-panel-whiteboard" data-panel="whiteboard" hidden>
+        {% include "_whiteboard_editor.html" %}
+      </div>
     </section>
   </main>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="{{ url_for('static', filename='whiteboard.js') }}"></script>
 {% endblock %}
 {% block scripts %}
 <script>
@@ -162,6 +176,12 @@
       tabs.forEach((t) => t.classList.remove("active"));
       tab.classList.add("active");
       panels.forEach((p) => { p.hidden = p.dataset.panel !== tab.dataset.tab; });
+      if (tab.dataset.tab === "whiteboard") {
+        // Mounted lazily, the first time this tab is actually shown -- the canvas needs a
+        // visible, non-zero-size container to size itself correctly.
+        const wbEl = document.querySelector('.assignments-panel-whiteboard .wb-embed');
+        if (wbEl) requestAnimationFrame(() => WB.mount(wbEl));
+      }
     });
   });
 

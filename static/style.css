@@ -230,14 +230,31 @@ button {
 
 /* Student sidebar is now brand-only -- navigation moved into the single-page dashboard,
    Settings/Sign out moved into the top-right profile menu. */
-.sidebar-slim { width: 180px; }
-.sidebar-slim .sidebar-content { padding-top: 1.25rem; }
+/* Student pages: no side rail at all -- just a clean top bar with the logo, so the page reads
+   as one continuous surface (closer to Cuemath) instead of a mostly-empty sidebar column. */
+.portal:has(.sidebar-slim) { flex-direction: column; }
+.sidebar-slim {
+  width: 100%;
+  border-right: none;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.sidebar-slim .sidebar-content {
+  flex-direction: row;
+  align-items: center;
+  padding: 0.85rem 1.5rem;
+  height: auto;
+}
+.sidebar-slim .sidebar-brand-link { margin-bottom: 0; }
 
 .profile-menu {
   position: fixed;
   top: 1rem;
   right: 1.25rem;
   z-index: 850;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
 }
 
 .profile-avatar {
@@ -396,6 +413,53 @@ button {
 .assignments-tab.active {
   color: var(--text);
   border-bottom-color: #4f46e5;
+}
+
+.completed-group {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem;
+}
+
+.completed-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.85rem;
+}
+
+.assignments-panel-whiteboard { height: 640px; }
+.assignments-panel-whiteboard .wb-embed { height: 100%; }
+
+/* Admin per-student page: Profile / Workspace tabs */
+.admin-student-tabs {
+  display: flex;
+  gap: 0.4rem;
+  border-bottom: 1px solid var(--border);
+  margin: 1rem 0 1.25rem;
+}
+.admin-student-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-weight: 600;
+  padding: 0.6rem 0.9rem;
+  border-radius: 0;
+}
+.admin-student-tab.active {
+  color: var(--text);
+  border-bottom-color: #4f46e5;
+}
+
+.admin-student-whiteboard-card { display: flex; flex-direction: column; }
+.admin-student-whiteboard-wrap { height: 640px; }
+.admin-student-whiteboard-wrap .wb-embed { height: 100%; }
+
+.join-class-btn-compact {
+  padding: 0.45rem 0.9rem;
+  font-size: 0.82rem;
 }
 
 .assignment-cover-list {
@@ -929,15 +993,38 @@ img.curriculum-viewer {
   margin: 0;
 }
 
-/* ---------- Whiteboard editor: a native full-page tool, not an embedded product ---------- */
+/* ---------- Whiteboard editor: a native part of the site, mounted inline wherever it's
+   needed (standalone page, a dashboard tab, an admin panel) -- never an iframe. ---------- */
 
-.wb-shell {
+.wb-embed {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
+  min-height: 520px;
   background: var(--bg);
   color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
 }
+
+.wb-embed-maximized {
+  position: fixed;
+  inset: 1rem;
+  z-index: 900;
+  min-height: 0;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+}
+
+.wb-standalone {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 0.75rem;
+  gap: 0.5rem;
+}
+.wb-standalone .back-link { flex-shrink: 0; }
+.wb-standalone .wb-embed { flex: 1 1 auto; }
 
 .wb-header {
   display: flex;
@@ -987,7 +1074,7 @@ img.curriculum-viewer {
 }
 
 .wb-toolbar {
-  width: 64px;
+  width: 76px;
   flex-shrink: 0;
   border-right: 1px solid var(--border);
   background: var(--card);
@@ -1057,17 +1144,28 @@ img.curriculum-viewer {
   background: none;
 }
 
-.wb-stroke-select {
-  font-size: 0.68rem;
-  padding: 0.3rem 0.1rem;
-  border-radius: 6px;
+.wb-stroke-label { display: flex; align-items: center; }
+.wb-stroke-range {
+  width: 100%;
+  cursor: pointer;
+  accent-color: #4f46e5;
+}
+
+.wb-zoom-label {
+  font-size: 0.62rem;
+  color: var(--muted);
+  text-align: center;
 }
 
 .wb-canvas-wrap {
   flex: 1 1 auto;
   position: relative;
   overflow: hidden;
-  background: #fdfcf7;
+  background:
+    linear-gradient(to right, rgba(0, 0, 0, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.05) 1px, transparent 1px),
+    #ffffff;
+  background-size: 24px 24px;
 }
 
 .wb-pagebar {
@@ -1105,22 +1203,33 @@ img.curriculum-viewer {
 .wb-page-tab {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.35rem 0.7rem;
-  border-radius: 6px;
+  gap: 0.4rem;
+  padding: 0.3rem 0.6rem 0.3rem 0.3rem;
+  border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--bg);
   color: var(--muted);
   cursor: pointer;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   white-space: nowrap;
   flex-shrink: 0;
 }
 .wb-page-tab.active {
-  background: #4f46e5;
   border-color: #4f46e5;
-  color: #fff;
+  color: var(--text);
   font-weight: 600;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+}
+
+.wb-page-thumb {
+  width: 34px;
+  height: 22px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background-color: #fff;
+  background-size: cover;
+  background-position: center;
+  flex-shrink: 0;
 }
 .wb-page-tab-close {
   background: none;
@@ -2234,44 +2343,6 @@ img.curriculum-viewer {
 
 .call-resize-handle {
   display: none; /* native CSS `resize: both` on .call-window already provides this */
-}
-
-/* Whiteboard launcher -- a small pull-tab hugging the left edge on every page. Deliberately
-   thin so it barely protrudes; expands into a fullscreen overlay when clicked. */
-.wb-launch-tab {
-  position: fixed;
-  top: 50%;
-  right: 0;
-  transform: translateY(-50%);
-  z-index: 950; /* stays above the overlay (900) so clicking it again still closes it */
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
-  padding: 0.9rem 0.3rem;
-  border: 1px solid var(--border);
-  border-right: none;
-  border-radius: 12px 0 0 12px;
-  background: #4f46e5;
-  color: #fff;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  cursor: pointer;
-  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.15);
-}
-.wb-launch-tab[hidden] { display: none; }
-
-.wb-launch-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 900;
-  background: var(--bg);
-}
-.wb-launch-overlay[hidden] { display: none; }
-
-.wb-launch-frame {
-  width: 100%;
-  height: 100%;
-  border: none;
 }
 
 .draw-overlay {

@@ -26,31 +26,36 @@ from flask import abort, jsonify, redirect, render_template, request, url_for
 
 from models import (
     User, StudentProfile, WhiteboardWorkspace, WhiteboardPage, WhiteboardElement,
-    WhiteboardDeletion, db,
+    WhiteboardDeletion, WhiteboardImage, db,
 )
 
 MAX_IMAGE_BYTES = 8 * 1024 * 1024  # 8MB
 ALLOWED_IMAGE_EXTS = {"png", "jpg", "jpeg", "webp"}
 
 
-def register_whiteboard_routes(app):
-    from app import login_required, admin_required, current_user, get_supabase_storage, SupabaseNotConfigured
+def ensure_workspace(profile):
+    """Module-level (not nested in register_whiteboard_routes) so other parts of the app --
+    e.g. the dashboard route, which needs a workspace_id to embed the whiteboard tab -- can
+    reuse it without needing their own copy of this logic."""
+    ws = profile.whiteboard_workspace
+    if ws is None:
+        ws = WhiteboardWorkspace(profile_id=profile.id)
+        db.session.add(ws)
+        db.session.flush()  # get ws.id before creating the first page
+        db.session.add(WhiteboardPage(workspace_id=ws.id, name="Page 1", position=0))
+        db.session.commit()
+    elif not ws.pages:
+        # Shouldn't normally happen (a workspace is always created with one page), but stay
+        # defensive -- a workspace with zero pages would leave the editor with nothing to show.
+        db.session.add(WhiteboardPage(workspace_id=ws.id, name="Page 1", position=0))
+        db.session.commit()
+    return ws
 
-    def _ensure_workspace(profile):
-        ws = profile.whiteboard_workspace
-        if ws is None:
-            ws = WhiteboardWorkspace(profile_id=profile.id)
-            db.session.add(ws)
-            db.session.flush()  # get ws.id before creating the first page
-            db.session.add(WhiteboardPage(workspace_id=ws.id, name="Page 1", position=0))
-            db.session.commit()
-        elif not ws.pages:
-            # Shouldn't normally happen (a workspace is always created with one page), but
-            # stay defensive -- a workspace with zero pages would leave the editor with
-            # nothing to show.
-            db.session.add(WhiteboardPage(workspace_id=ws.id, name="Page 1", position=0))
-            db.session.commit()
-        return ws
+
+def register_whiteboard_routes(app):
+    from app import login_required, admin_required, current_user, get_supabase_storage
+
+    _ensure_workspace = ensure_workspace
 
     def _authorize_workspace(workspace):
         user = current_user()
@@ -105,43 +110,28 @@ def register_whiteboard_routes(app):
 
     # ---------------- Page routes (render the editor) ----------------
 
+    # A student's whiteboard is now embedded directly as a tab on their own dashboard
+    # (student) or on the admin's per-student "Workspace" tab -- this standalone page just
+    # stays around for whoever still has it bookmarked, redirecting into the right tab.
     @app.route("/whiteboard")
     @login_required
     def whiteboard():
         user = current_user()
         if user.is_admin:
-            return redirect(url_for("admin_whiteboards"))
-        profile = user.profile
-        if not profile or not profile.setup_complete:
-            return render_template("waiting.html", user=user)
-        ws = _ensure_workspace(profile)
-        return render_template(
-            "whiteboard.html", user=user, workspace_id=ws.id,
-            board_title=user.name or user.email, active="whiteboard", read_only=False,
-        )
+            return redirect(url_for("dashboard"))
+        return redirect(url_for("dashboard"))
 
     @app.route("/admin/whiteboards")
     @login_required
     @admin_required
     def admin_whiteboards():
-        students = User.query.filter_by(is_admin=False).order_by(User.created_at).all()
-        return render_template(
-            "admin_whiteboards.html", user=current_user(), students=students, active="whiteboards",
-        )
+        return redirect(url_for("dashboard"))
 
     @app.route("/admin/student/<int:user_id>/whiteboard")
     @login_required
     @admin_required
     def admin_student_whiteboard(user_id):
-        student = User.query.filter_by(id=user_id, is_admin=False).first_or_404()
-        admin = current_user()
-        students = User.query.filter_by(is_admin=False).order_by(User.created_at).all()
-        ws = _ensure_workspace(student.profile)
-        return render_template(
-            "whiteboard.html", user=admin, workspace_id=ws.id,
-            board_title=student.name or student.email, active=None, read_only=False,
-            admin_students=students, admin_current_student=student,
-        )
+        return redirect(url_for("admin_student", user_id=user_id))
 
     # ---------------- Pages API ----------------
 
@@ -306,22 +296,31 @@ def register_whiteboard_routes(app):
         storage_path = f"page-{page.id}/{uuid.uuid4().hex}.{ext}"
         mimetype = file.mimetype or f"image/{ext}"
 
+        # Try Supabase Storage first (the recommended, storage-efficient path -- see the
+        # README). If it isn't configured, or the call fails for any reason (most commonly:
+        # the "whiteboard-uploads" bucket hasn't been created yet), fall back to storing the
+        # image locally so the upload still succeeds either way -- this feature shouldn't be
+        # broken just because a separate manual setup step wasn't done first.
         try:
             client = get_supabase_storage()
             client.storage.from_("whiteboard-uploads").upload(
                 storage_path, raw, {"content-type": mimetype},
             )
             url = client.storage.from_("whiteboard-uploads").get_public_url(storage_path)
-        except SupabaseNotConfigured as exc:
-            return jsonify({"error": str(exc)}), 500
-        except Exception as exc:
-            # Most common cause: the "whiteboard-uploads" bucket doesn't exist yet in
-            # Supabase Storage -- see the README for the one-time setup step.
-            return jsonify({
-                "error": (
-                    "Couldn't upload the image -- make sure a public Supabase Storage bucket "
-                    f"named \"whiteboard-uploads\" exists. ({exc})"
-                )
-            }), 500
+            return jsonify({"url": url}), 201
+        except Exception:
+            pass
 
-        return jsonify({"url": url}), 201
+        image_id = str(uuid.uuid4())
+        db.session.add(WhiteboardImage(id=image_id, page_id=page.id, mimetype=mimetype, data=raw))
+        db.session.commit()
+        return jsonify({"url": url_for("serve_whiteboard_image", image_id=image_id)}), 201
+
+    @app.route("/whiteboard/images/<string:image_id>")
+    @login_required
+    def serve_whiteboard_image(image_id):
+        from flask import Response
+        image = WhiteboardImage.query.get_or_404(image_id)
+        page = WhiteboardPage.query.get_or_404(image.page_id)
+        _authorize_workspace(page.workspace)
+        return Response(image.data, mimetype=image.mimetype)

@@ -5,40 +5,21 @@
   {% include "_admin_sidebar.html" %}
   <main class="content">
     <h1>Dashboard</h1>
-    <p class="muted">Select a student from the sidebar to manage their profile, curriculum, and class schedule -- or use the "Assign Quiz" tab to generate a quiz for any student.</p>
+    <p class="muted">Select a student from the sidebar to manage their profile, assign quizzes, and open their whiteboard.</p>
 
-    <section class="card">
-      <h3>Class call</h3>
-      {% if class_call_url %}
+    {% if not class_call_url %}
+      <section class="card">
+        <h3>Class call not set up yet</h3>
         <p class="muted small">
-          One shared room -- every student joins the same call you start. If you turned on
-          waiting-room/lobby controls in your Whereby room settings, students wait in a lobby until
-          you let them in.
-        </p>
-        <button type="button" class="join-class-btn" id="startClassBtn"
-          data-url="{{ class_call_url }}" data-name="{{ user.name or user.email }}">
-          Start Class
-        </button>
-      {% else %}
-        <p class="muted small">
-          Not set up yet. Create a room in Whereby, then set the <code>CLASS_CALL_URL</code>
-          environment variable to your participant room URL (for example
+          Create a room in Whereby, then set the <code>CLASS_CALL_URL</code> environment
+          variable to your participant room URL (for example
           <code>https://your-subdomain.whereby.com/your-room-name</code>). For host controls,
           also set <code>CLASS_CALL_HOST_URL</code> to the full host link that includes
-          <code>?roomKey=...</code>.
+          <code>?roomKey=...</code>. Once set, a "Join Call" button appears next to your
+          profile picture on every page.
         </p>
-      {% endif %}
-    </section>
+      </section>
+    {% endif %}
   </main>
 </div>
-{% endblock %}
-{% block scripts %}
-<script>
-  const startClassBtn = document.getElementById("startClassBtn");
-  if (startClassBtn) {
-    startClassBtn.addEventListener("click", () => {
-      openClassCall(startClassBtn.dataset.url, startClassBtn.dataset.name);
-    });
-  }
-</script>
 {% endblock %}

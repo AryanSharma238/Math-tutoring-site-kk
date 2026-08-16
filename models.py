@@ -195,6 +195,22 @@ class WhiteboardDeletion(db.Model):
     deleted_at = db.Column(db.DateTime, default=lambda: datetime.now(dt_timezone.utc), index=True)
 
 
+class WhiteboardImage(db.Model):
+    """Fallback storage for whiteboard image uploads when Supabase Storage isn't configured
+    (no SUPABASE_URL/keys) or a call to it fails for any reason (e.g. the 'whiteboard-uploads'
+    bucket hasn't been created yet) -- uploading should always work out of the box, not depend
+    on a separate manual setup step succeeding first. Supabase Storage is still tried first and
+    is the recommended path (see the README); this only exists to guarantee the feature isn't
+    broken without it."""
+    __tablename__ = "whiteboard_images"
+
+    id = db.Column(db.String(36), primary_key=True)
+    page_id = db.Column(db.Integer, db.ForeignKey("whiteboard_pages.id"), nullable=False, index=True)
+    mimetype = db.Column(db.String(100), nullable=False)
+    data = db.Column(db.LargeBinary, nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(dt_timezone.utc))
+
+
 class CurriculumFile(db.Model):
     __tablename__ = "curriculum_files"
 

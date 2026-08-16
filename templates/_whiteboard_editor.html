@@ -1,0 +1,61 @@
+<!-- Reusable whiteboard editor markup -- included wherever a board needs to appear (the
+     standalone /whiteboard page, a tab on the student dashboard, or an admin panel). Always
+     rendered inline in the page's own DOM, never in an iframe -- that's what makes opening it
+     instant with no load delay, since the canvas/toolbar are already part of the page and
+     Fabric.js only needs to run once per page load, not once per open. JS initializes it lazily
+     (see wbMountAll()/WB.mount in whiteboard.js) the first time it's actually shown. -->
+<div class="wb-embed" data-workspace-id="{{ workspace_id }}">
+  <div class="wb-header">
+    <div class="wb-header-titles">
+      <span class="wb-header-page" data-wb="headerPage"></span>
+    </div>
+    <span class="wb-status" data-wb="status">Loading...</span>
+    <button type="button" class="wb-header-btn" data-wb="maximizeBtn" title="Maximize">&#x26F6;</button>
+    <button type="button" class="wb-header-btn" data-wb="downloadBtn">Download PDF</button>
+  </div>
+
+  <div class="wb-body">
+    <div class="wb-toolbar" data-wb="toolbar">
+      <button type="button" class="wb-tool active" data-tool="select" title="Select (V)">Select</button>
+      <button type="button" class="wb-tool" data-tool="pen" title="Pen (P)">Pen</button>
+      <button type="button" class="wb-tool" data-tool="highlighter" title="Highlighter (H)">Marker</button>
+      <button type="button" class="wb-tool" data-tool="eraser" title="Eraser (E) -- drag over a stroke to remove it">Eraser</button>
+      <button type="button" class="wb-tool" data-tool="text" title="Text (T)">Text</button>
+      <div class="wb-tool-group">
+        <button type="button" class="wb-tool" data-tool="rect" title="Rectangle">Rect</button>
+        <button type="button" class="wb-tool" data-tool="circle" title="Circle">Circle</button>
+        <button type="button" class="wb-tool" data-tool="line" title="Line">Line</button>
+        <button type="button" class="wb-tool" data-tool="arrow" title="Arrow">Arrow</button>
+      </div>
+      <div class="wb-divider"></div>
+      <div class="wb-color-swatches" data-wb="colorSwatches" title="Color">
+        <button type="button" class="wb-swatch active" data-color="#1a1a2e" style="background:#1a1a2e"></button>
+        <button type="button" class="wb-swatch" data-color="#dc2626" style="background:#dc2626"></button>
+        <button type="button" class="wb-swatch" data-color="#2563eb" style="background:#2563eb"></button>
+        <button type="button" class="wb-swatch" data-color="#16a34a" style="background:#16a34a"></button>
+        <button type="button" class="wb-swatch" data-color="#f59e0b" style="background:#f59e0b"></button>
+        <input type="color" class="wb-swatch-custom" data-wb="colorCustom" title="Custom color" value="#1a1a2e">
+      </div>
+      <div class="wb-divider"></div>
+      <label class="wb-stroke-label" title="Stroke width">
+        <input type="range" min="1" max="30" value="5" class="wb-stroke-range" data-wb="strokeWidth">
+      </label>
+      <div class="wb-divider"></div>
+      <button type="button" class="wb-tool" data-wb="zoomOutBtn" title="Zoom out">&minus;</button>
+      <span class="wb-zoom-label" data-wb="zoomLabel">100%</span>
+      <button type="button" class="wb-tool" data-wb="zoomInBtn" title="Zoom in">+</button>
+      <div class="wb-divider"></div>
+      <button type="button" class="wb-tool" data-wb="imageBtn" title="Insert image">Image</button>
+      <input type="file" data-wb="imageInput" accept="image/png,image/jpeg,image/webp" hidden>
+    </div>
+
+    <div class="wb-canvas-wrap" data-wb="canvasWrap">
+      <canvas data-wb="canvas"></canvas>
+    </div>
+  </div>
+
+  <div class="wb-pagebar">
+    <button type="button" class="wb-page-add" data-wb="addPage" title="Add page">+</button>
+    <div class="wb-page-tabs" data-wb="pageTabs"></div>
+  </div>
+</div>
