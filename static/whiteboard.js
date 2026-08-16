@@ -219,6 +219,50 @@ window.WB = (function () {
       }
     });
 
+    // Two-finger touch drag pans the board on tablets and phones. Register in the
+    // capture phase so Fabric does not interpret the gesture as a drawing/select action.
+    let touchPanning = false;
+    let touchPanStart = null;
+    const touchCanvas = canvas.upperCanvasEl;
+    function touchMidpoint(touches) {
+      return {
+        x: (touches[0].clientX + touches[1].clientX) / 2,
+        y: (touches[0].clientY + touches[1].clientY) / 2,
+      };
+    }
+    touchCanvas.addEventListener("touchstart", (event) => {
+      if (event.touches.length !== 2) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      touchPanning = true;
+      panning = false;
+      touchPanStart = touchMidpoint(event.touches);
+      canvas.selection = false;
+      canvas.defaultCursor = "grabbing";
+    }, { passive: false, capture: true });
+    touchCanvas.addEventListener("touchmove", (event) => {
+      if (!touchPanning || event.touches.length < 2) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const point = touchMidpoint(event.touches);
+      const vpt = canvas.viewportTransform;
+      vpt[4] += point.x - touchPanStart.x;
+      vpt[5] += point.y - touchPanStart.y;
+      touchPanStart = point;
+      clampPan();
+    }, { passive: false, capture: true });
+    function stopTouchPan(event) {
+      if (!touchPanning) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      touchPanning = false;
+      touchPanStart = null;
+      canvas.selection = currentTool === "select";
+      canvas.defaultCursor = currentTool === "select" ? "default" : "crosshair";
+    }
+    touchCanvas.addEventListener("touchend", stopTouchPan, { passive: false, capture: true });
+    touchCanvas.addEventListener("touchcancel", stopTouchPan, { passive: false, capture: true });
+
     // ---------------- Shape / text creation ----------------
     let shapeStart = null;
     let activeShape = null;
