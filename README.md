@@ -209,12 +209,11 @@ overlay without leaving whatever page they're on.
 
 ### Realtime sync
 
-Collaborators poll for changes every ~1.5 seconds rather than holding open a websocket
-connection -- this is a deliberate simplification, not an oversight: this Flask app runs on
-Render's free tier via a standard WSGI server (gunicorn), which isn't set up for long-lived
-websocket connections, and adding one (or wiring the frontend to authenticate directly against
-Supabase Realtime, which requires issuing it a Supabase-verified session the rest of the app
-doesn't use) would be a meaningfully larger change than this feature justified on its own.
+Collaborators use short, non-overlapping HTTP sync requests rather than holding open a
+websocket or server-sent-events connection. This is important on Render when Gunicorn is
+running its default single synchronous worker: a long-lived stream would occupy that worker
+and make normal dashboard reloads wait. The whiteboard syncs frequently while leaving the
+worker available for regular page requests.
 
 In practice this means edits show up for the other person within a second or two, not
 instantly -- and only the elements that actually changed since the last poll are ever sent

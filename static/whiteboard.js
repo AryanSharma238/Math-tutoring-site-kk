@@ -717,7 +717,10 @@ window.WB = (function () {
     // Poll the page LIST itself (not just the open page's elements) every few seconds, so a
     // page added/renamed/deleted by the other collaborator shows up here too -- without this,
     // only element-level changes on the page you already have open would ever sync.
+    let pagesPollInFlight = false;
     function pollPages() {
+      if (pagesPollInFlight) return;
+      pagesPollInFlight = true;
       api(`/api/whiteboard/${workspaceId}/pages`).then(({ pages: list }) => {
         const changed = JSON.stringify(list) !== JSON.stringify(pages);
         if (!changed) return;
@@ -730,7 +733,7 @@ window.WB = (function () {
         } else {
           renderPageTabs();
         }
-      }).catch(() => {});
+      }).catch(() => {}).finally(() => { pagesPollInFlight = false; });
     }
 
     function switchToPage(pageId) {
@@ -800,9 +803,12 @@ window.WB = (function () {
 
     function startSync() {
       stopSync();
-      syncTimer = setInterval(pollSync, 250);
-      pagesSyncTimer = setInterval(pollPages, 1000);
-      startEventStream();
+      // Render's default Gunicorn worker is synchronous. Do not open a long-lived
+      // EventSource connection here: it can occupy the only worker and make the
+      // entire dashboard look frozen on reload. Short, non-overlapping requests
+      // keep updates responsive without blocking normal page loads.
+      syncTimer = setInterval(pollSync, 750);
+      pagesSyncTimer = setInterval(pollPages, 2500);
     }
 
     function stopSync() {
@@ -832,8 +838,11 @@ window.WB = (function () {
       }
     }
 
+    let syncInFlight = false;
     function pollSync() {
       if (!currentPageId) return;
+      if (syncInFlight) return;
+      syncInFlight = true;
       const url = `/api/whiteboard/pages/${currentPageId}/sync?since=${encodeURIComponent(lastSyncTime)}`;
       api(url)
         .then((data) => {
@@ -866,7 +875,7 @@ window.WB = (function () {
         })
         .catch(() => {
           setStatus("Reconnecting...", "wb-status-error");
-        });
+        }).finally(() => { syncInFlight = false; });
     }
 
     // ---------------- PDF export (client-side, every page) ----------------
