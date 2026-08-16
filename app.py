@@ -27,15 +27,12 @@ GITHUB_REPO = "AryanSharma238/Math-tutoring-site-kk"
 #
 # This used to point at meet.jit.si, Jitsi's public server -- but embedding it in an iframe
 # throws its own "Embedding meet.jit.si is only meant for demo purposes... will disconnect in
-# 5 minutes" warning and actually does that, so it's unusable for a real class. Daily.co is
-# built specifically to be embedded like this (their "Prebuilt" call UI is made for exactly
-# this use case) and has a real free tier: 10,000 participant-minutes/month, up to 20
-# participants, waiting-room ("knocking") support per room.
+# 5 minutes" warning and actually does that, so it's unusable for a real class. Whereby is
+# built specifically to be embedded like this and supports waiting-room style control via room
+# permissions.
 #
-# One-time setup (a few minutes, no card required): sign up free at https://dashboard.daily.co,
-# create a room from the dashboard (Rooms -> Create room), turn on "Enable knocking" under that
-# room's settings for a waiting room, then set CLASS_CALL_URL below to the room's URL (it looks
-# like https://your-subdomain.daily.co/your-room-name).
+# One-time setup: create a Whereby room and set CLASS_CALL_URL below to that room URL (it looks
+# like https://your-subdomain.whereby.com/your-room-name).
 CLASS_CALL_URL = os.environ.get("CLASS_CALL_URL", "")
 
 # In-memory quiz-generation job store. Generation runs in a background thread so the
