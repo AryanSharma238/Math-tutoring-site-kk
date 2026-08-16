@@ -14,7 +14,7 @@
 // WB.mount(rootEl) once per container the first time it actually needs to be visible; it's a
 // no-op on a container that's already mounted.
 //
-// Sync model: every ~1.5s, poll GET /api/whiteboard/pages/<id>/sync?since=<last poll time> for
+// Sync model: every 750ms, poll GET /api/whiteboard/pages/<id>/sync?since=<last poll time> for
 // whatever changed on the current page since the last poll, and apply just those changes to
 // the local canvas. This is "near-real-time" (a second or two of latency), not a push-based
 // websocket -- see the README for why, given this app's existing architecture.
@@ -800,8 +800,8 @@ window.WB = (function () {
 
     function startSync() {
       stopSync();
-      syncTimer = setInterval(pollSync, 1500);
-      pagesSyncTimer = setInterval(pollPages, 3000);
+      syncTimer = setInterval(pollSync, 750);
+      pagesSyncTimer = setInterval(pollPages, 1500);
     }
 
     function stopSync() {

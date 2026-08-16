@@ -123,6 +123,16 @@
           {% include "_whiteboard_editor.html" %}
         </div>
       </section>
+
+      <section class="card">
+        <h3>Assign PDF homework</h3>
+        <p class="muted small">Give the assignment a name, then upload the PDF for this student.</p>
+        <form method="POST" action="{{ url_for('admin_student_homework', user_id=student.id) }}" enctype="multipart/form-data" class="form-row homework-upload-form">
+          <input type="text" name="title" placeholder="Homework name" required>
+          <input type="file" name="homework" accept="application/pdf,.pdf" required>
+          <button type="submit">Assign PDF</button>
+        </form>
+      </section>
     </div>
   </main>
 </div>

@@ -17,7 +17,7 @@ from flask import (
 from io import BytesIO
 from supabase import create_client
 
-from models import ClassScheduleSlot, CurriculumFile, Quiz, StudentProfile, TodoItem, User, db
+from models import ClassScheduleSlot, CurriculumFile, HomeworkFile, Quiz, StudentProfile, TodoItem, User, db
 
 GITHUB_REPO = "AryanSharma238/Math-tutoring-site-kk"
 
@@ -1005,6 +1005,25 @@ def register_routes(app):
             flash("Curriculum uploaded.")
         return redirect(url_for("admin_student", user_id=user_id))
 
+    @app.route("/admin/student/<int:user_id>/homework", methods=["POST"])
+    @login_required
+    @admin_required
+    def admin_student_homework(user_id):
+        student = User.query.filter_by(id=user_id, is_admin=False).first_or_404()
+        file = request.files.get("homework")
+        title = (request.form.get("title") or "").strip()
+        ext = file.filename.rsplit(".", 1)[-1].lower() if file and "." in file.filename else ""
+        if not file or not file.filename or ext != "pdf":
+            flash("Please choose a PDF homework file.")
+        elif not title:
+            flash("Please give the homework a name.")
+        else:
+            db.session.add(HomeworkFile(profile_id=student.profile.id, title=title[:255], filename=file.filename,
+                                        mimetype=file.mimetype or "application/pdf", data=file.read()))
+            db.session.commit()
+            flash("Homework PDF assigned to student.")
+        return redirect(url_for("admin_student", user_id=user_id))
+
     @app.route("/admin/student/<int:user_id>/schedule", methods=["POST"])
     @login_required
     @admin_required
@@ -1183,6 +1202,15 @@ def register_routes(app):
         db.session.commit()
         flash("Quiz removed.")
         return redirect(url_for("admin_student", user_id=user_id))
+
+    @app.route("/homework/<int:file_id>")
+    @login_required
+    def serve_homework(file_id):
+        record = HomeworkFile.query.get_or_404(file_id)
+        user = current_user()
+        if not user.is_admin and (not user.profile or user.profile.id != record.profile_id):
+            abort(403)
+        return send_file(BytesIO(record.data), mimetype=record.mimetype, download_name=record.filename)
 
     # --- Curriculum file serving ---
 

@@ -54,6 +54,10 @@ class StudentProfile(db.Model):
         "ClassScheduleSlot", backref="profile", cascade="all, delete-orphan",
         order_by="ClassScheduleSlot.weekday, ClassScheduleSlot.time",
     )
+    homework_files = db.relationship(
+        "HomeworkFile", backref="profile", cascade="all, delete-orphan",
+        order_by="HomeworkFile.uploaded_at.desc()",
+    )
 
     @property
     def next_class(self):
@@ -101,6 +105,17 @@ class StudentProfile(db.Model):
         return sorted(
             (q for q in self.quizzes if q.completed_at), key=lambda q: q.completed_at, reverse=True,
         )
+
+    @property
+    def questions_answered(self):
+        import json
+        total = 0
+        for quiz in self.quizzes:
+            try:
+                total += sum(1 for answer in json.loads(quiz.answers_json or "{}").values() if answer.get("submitted"))
+            except (ValueError, TypeError, AttributeError):
+                continue
+        return total
 
 
 class ClassScheduleSlot(db.Model):
@@ -216,6 +231,18 @@ class CurriculumFile(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     profile_id = db.Column(db.Integer, db.ForeignKey("student_profiles.id"), nullable=False)
+    filename = db.Column(db.String(255), nullable=False)
+    mimetype = db.Column(db.String(100), nullable=False)
+    data = db.Column(db.LargeBinary, nullable=False)
+    uploaded_at = db.Column(db.DateTime, default=lambda: datetime.now(dt_timezone.utc))
+
+
+class HomeworkFile(db.Model):
+    __tablename__ = "homework_files"
+
+    id = db.Column(db.Integer, primary_key=True)
+    profile_id = db.Column(db.Integer, db.ForeignKey("student_profiles.id"), nullable=False, index=True)
+    title = db.Column(db.String(255), nullable=False)
     filename = db.Column(db.String(255), nullable=False)
     mimetype = db.Column(db.String(100), nullable=False)
     data = db.Column(db.LargeBinary, nullable=False)

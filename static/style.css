@@ -457,6 +457,21 @@ button {
 .admin-student-whiteboard-wrap { height: 640px; }
 .admin-student-whiteboard-wrap .wb-embed { height: 100%; }
 
+.dashboard-counter { min-height: 150px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border-radius: 12px; background: linear-gradient(135deg, #eef2ff, #f5f3ff); color: #3730a3; }
+.dashboard-counter span { font-size: 0.9rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.dashboard-counter strong { font-size: clamp(3.5rem, 9vw, 6.5rem); line-height: 1; font-weight: 800; letter-spacing: -0.07em; font-family: ui-rounded, "Avenir Next", system-ui, sans-serif; }
+.homework-list { margin-top: 1.25rem; }
+.homework-file { display: flex; justify-content: space-between; gap: 1rem; padding: 0.8rem 1rem; margin-top: 0.5rem; border: 1px solid var(--border); border-radius: 9px; color: var(--text); text-decoration: none; font-weight: 700; }
+.homework-file span { color: #4f46e5; font-size: 0.85rem; }
+.whiteboard-pull-tab { position: fixed; right: 0; top: 42%; z-index: 850; border-radius: 10px 0 0 10px; padding: 0.8rem 0.55rem; writing-mode: vertical-rl; background: #4f46e5; color: #fff; box-shadow: 0 8px 25px rgba(79,70,229,.3); }
+.whiteboard-pull-tab span { font-size: 1.2rem; margin-top: .4rem; }
+.student-whiteboard-drawer { position: fixed; z-index: 860; top: 0; right: 0; bottom: 0; width: min(94vw, 980px); padding: 0.75rem; background: var(--bg); box-shadow: -18px 0 45px rgba(0,0,0,.22); transform: translateX(100%); transition: transform .28s cubic-bezier(.2,.8,.2,1); }
+.student-whiteboard-drawer.open { transform: translateX(0); }
+.student-whiteboard-drawer .wb-embed { height: calc(100% - 42px); min-height: 0; }
+.student-whiteboard-drawer-head { height: 34px; display: flex; justify-content: space-between; align-items: center; }
+.student-whiteboard-drawer-head button { padding: .15rem .55rem; }
+@media (max-width: 650px) { .student-whiteboard-drawer { width: 100vw; padding: .4rem; } .whiteboard-pull-tab { top: 35%; } }
+
 .join-class-btn-compact {
   padding: 0.45rem 0.9rem;
   font-size: 0.82rem;

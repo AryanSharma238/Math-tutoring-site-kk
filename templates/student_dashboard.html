@@ -25,8 +25,7 @@
             </button>
           {% endif %}
         {% else %}
-          <p class="muted">No upcoming classes scheduled yet.</p>
-          <p class="muted small">{{ profile.course_name or "No course set" }}</p>
+          <div class="dashboard-counter"><span>Questions answered</span><strong>{{ profile.questions_answered }}</strong></div>
         {% endif %}
       </section>
 
@@ -41,7 +40,7 @@
           {% endif %}
           <p class="muted small">{{ f.filename }}</p>
         {% else %}
-          <p class="muted">No curriculum uploaded yet.</p>
+          <div class="dashboard-counter"><span>Questions answered</span><strong>{{ profile.questions_answered }}</strong></div>
         {% endif %}
       </section>
     </div>
@@ -51,7 +50,6 @@
         <button type="button" class="assignments-tab active" data-tab="assigned">Assigned</button>
         <button type="button" class="assignments-tab" data-tab="completed">Completed</button>
         <button type="button" class="assignments-tab" data-tab="self-assign">Self-Assign Quizzes</button>
-        <button type="button" class="assignments-tab" data-tab="whiteboard">Whiteboard</button>
       </div>
 
       <div class="assignments-panel" data-panel="assigned">
@@ -68,6 +66,14 @@
             <p class="muted">Nothing assigned right now.</p>
           {% endfor %}
         </div>
+        {% if profile.homework_files %}
+          <div class="homework-list">
+            <h4>Homework PDFs</h4>
+            {% for homework in profile.homework_files %}
+              <a class="homework-file" href="{{ url_for('serve_homework', file_id=homework.id) }}" target="_blank">{{ homework.title }} <span>Open PDF</span></a>
+            {% endfor %}
+          </div>
+        {% endif %}
       </div>
 
       <div class="assignments-panel" data-panel="completed" hidden>
@@ -111,12 +117,15 @@
         <p class="quiz-status" id="ownQuizStatus"></p>
       </div>
 
-      <div class="assignments-panel assignments-panel-whiteboard" data-panel="whiteboard" hidden>
-        {% include "_whiteboard_editor.html" %}
-      </div>
     </section>
   </main>
 </div>
+
+<button type="button" class="whiteboard-pull-tab" id="whiteboardPullTab" aria-controls="studentWhiteboard" aria-expanded="false">Whiteboard <span>←</span></button>
+<aside class="student-whiteboard-drawer" id="studentWhiteboard" aria-hidden="true">
+  <div class="student-whiteboard-drawer-head"><strong>Whiteboard</strong><button type="button" id="closeWhiteboard" aria-label="Close whiteboard">→</button></div>
+  {% include "_whiteboard_editor.html" %}
+</aside>
 
 <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
@@ -176,14 +185,19 @@
       tabs.forEach((t) => t.classList.remove("active"));
       tab.classList.add("active");
       panels.forEach((p) => { p.hidden = p.dataset.panel !== tab.dataset.tab; });
-      if (tab.dataset.tab === "whiteboard") {
-        // Mounted lazily, the first time this tab is actually shown -- the canvas needs a
-        // visible, non-zero-size container to size itself correctly.
-        const wbEl = document.querySelector('.assignments-panel-whiteboard .wb-embed');
-        if (wbEl) requestAnimationFrame(() => WB.mount(wbEl));
-      }
     });
   });
+
+  const drawer = document.getElementById("studentWhiteboard");
+  const pullTab = document.getElementById("whiteboardPullTab");
+  function setWhiteboardOpen(open) {
+    drawer.classList.toggle("open", open);
+    drawer.setAttribute("aria-hidden", String(!open));
+    pullTab.setAttribute("aria-expanded", String(open));
+    if (open) requestAnimationFrame(() => WB.mount(drawer.querySelector(".wb-embed")));
+  }
+  pullTab.addEventListener("click", () => setWhiteboardOpen(!drawer.classList.contains("open")));
+  document.getElementById("closeWhiteboard").addEventListener("click", () => setWhiteboardOpen(false));
 
   // Self-assign quiz generation
   const ownForm = document.getElementById("ownQuizForm");
