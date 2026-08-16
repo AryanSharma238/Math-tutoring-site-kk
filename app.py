@@ -31,9 +31,25 @@ GITHUB_REPO = "AryanSharma238/Math-tutoring-site-kk"
 # built specifically to be embedded like this and supports waiting-room style control via room
 # permissions.
 #
-# One-time setup: create a Whereby room and set CLASS_CALL_URL below to that room URL (it looks
-# like https://your-subdomain.whereby.com/your-room-name).
-CLASS_CALL_URL = os.environ.get("CLASS_CALL_URL", "")
+# One-time setup:
+# - CLASS_CALL_URL: participant room URL (no roomKey) used for students.
+# - CLASS_CALL_HOST_URL: host link (includes roomKey) used for admins.
+# If only CLASS_CALL_HOST_URL is set, students automatically get the same URL with roomKey
+# stripped so they join as participants.
+def _strip_whereby_room_key(raw_url):
+    if not raw_url:
+        return ""
+    parts = urlsplit(raw_url.strip())
+    if not parts.scheme or not parts.netloc:
+        return raw_url.strip()
+    query = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True) if k != "roomKey"]
+    return urlunsplit(parts._replace(query=urlencode(query)))
+
+
+_configured_participant_url = os.environ.get("CLASS_CALL_URL", "").strip()
+_configured_host_url = os.environ.get("CLASS_CALL_HOST_URL", "").strip()
+CLASS_CALL_PARTICIPANT_URL = _strip_whereby_room_key(_configured_participant_url or _configured_host_url)
+CLASS_CALL_HOST_URL = _configured_host_url or CLASS_CALL_PARTICIPANT_URL
 
 # In-memory quiz-generation job store. Generation runs in a background thread so the
 # HTTP request that kicks it off returns instantly -- this avoids Render's platform
@@ -686,7 +702,7 @@ def register_routes(app):
             students = User.query.filter_by(is_admin=False).order_by(User.created_at).all()
             return render_template(
                 "admin_dashboard.html", user=user, students=students, active="dashboard",
-                class_call_url=CLASS_CALL_URL,
+                class_call_url=CLASS_CALL_HOST_URL,
             )
 
         profile = user.profile
@@ -696,7 +712,7 @@ def register_routes(app):
         return render_template(
             "student_dashboard.html", user=user, profile=profile,
             next_class=profile.next_class, active="dashboard",
-            class_call_url=CLASS_CALL_URL,
+            class_call_url=CLASS_CALL_PARTICIPANT_URL,
         )
 
     @app.route("/admin/assign-quiz")
