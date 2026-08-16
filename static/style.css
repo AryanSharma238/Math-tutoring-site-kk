@@ -685,6 +685,21 @@ img.curriculum-viewer {
   margin-bottom: 1rem;
 }
 
+.quiz-graph {
+  position: relative;
+  height: 260px;
+  margin-top: 0.85rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem;
+}
+
+.quiz-graph-canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
 .quiz-choices {
   margin-top: 0.75rem;
   display: flex;

@@ -56,6 +56,7 @@ full deletion later.
 | `ADMIN_EMAIL` | Yes | The email address that becomes admin on first sign-up. Everyone else who signs up becomes a student |
 | `OPENROUTER_API_KEY` | Yes, for the OpenRouter quiz models | Free key from [openrouter.ai/keys](https://openrouter.ai/keys), used server-side to generate quizzes |
 | `GROQ_API_KEY` | Yes, for the Groq quiz models | Free key from [console.groq.com/keys](https://console.groq.com/keys) -- Groq's free models are noticeably faster and more reliable at following the quiz JSON format than the free OpenRouter models |
+| `GEMINI_API_KEY` | Yes, for the Gemini quiz models | Free key from [aistudio.google.com/apikey](https://aistudio.google.com/apikey) -- Gemini is tried first and the app automatically falls back to Groq/OpenRouter models once its free daily quota runs out |
 | `PYTHON_VERSION` | Yes, on Render | Set to `3.12.7` -- avoids a build failure where `psycopg2-binary`'s prebuilt wheel doesn't yet support Render's newer default Python |
 
 ## Deploying (Supabase auth + database, Render web service)
@@ -123,6 +124,7 @@ full deletion later.
    - `ADMIN_EMAIL` -- the email you (the teacher) will sign up with
    - `OPENROUTER_API_KEY` -- your free key from [openrouter.ai/keys](https://openrouter.ai/keys)
    - `GROQ_API_KEY` -- your free key from [console.groq.com/keys](https://console.groq.com/keys) (sign up free, no card, click "Create API Key")
+   - `GEMINI_API_KEY` -- your free key from [aistudio.google.com/apikey](https://aistudio.google.com/apikey) (sign in with a Google account, click "Create API Key", no card needed)
 
 8. **Deploy.** Render will build and start the app. The first request creates
    all database tables automatically (`db.create_all()` runs at startup) --

@@ -61,10 +61,14 @@ COMMON_TIMEZONES = [
 
 # Each entry: (value sent by the <select>, provider, human label).
 # value = "{provider}|{model id}" -- parsed in _generate_quiz_attempt to pick the right API.
+# Order matters: this is also the automatic-failover order -- if the selected model's daily
+# free quota is exhausted (or it fails for any reason), generation moves on to the next one.
 FREE_MODELS = [
+    ("gemini|gemini-2.5-flash", "gemini", "Gemini: 2.5 Flash (free)"),
     ("groq|openai/gpt-oss-20b", "groq", "Groq: GPT-OSS 20B (fastest, free)"),
     ("groq|llama-3.3-70b-versatile", "groq", "Groq: Llama 3.3 70B (free)"),
     ("groq|llama-3.1-8b-instant", "groq", "Groq: Llama 3.1 8B Instant (free)"),
+    ("gemini|gemini-2.0-flash", "gemini", "Gemini: 2.0 Flash (free)"),
     ("openrouter|openai/gpt-oss-20b:free", "openrouter", "OpenRouter: GPT-OSS 20B (free)"),
     ("openrouter|nvidia/nemotron-3-nano-30b-a3b:free", "openrouter", "OpenRouter: Nemotron Nano 30B (free)"),
     ("openrouter|google/gemma-4-31b-it:free", "openrouter", "OpenRouter: Gemma 4 31B (free)"),
@@ -84,7 +88,37 @@ Be concise everywhere: solutions should be the shortest sequence of steps that f
 The "question" field must contain ONLY the question text -- never embed the answer choices inside it.
 The "title" field should be a short, specific, human-readable name for the quiz (4-8 words), based on the topic -- e.g. "Trigonometric Identities Practice" or "Quadratic Formula Word Problems". Do not just repeat the raw topic text verbatim.
 
-Formatting math: every mathematical expression, symbol, equation, fraction, exponent, root, or notation anywhere in "question", "choices[].text", "choices[].explanation", and "solution" must be written in LaTeX, wrapped in single dollar signs for inline math (e.g. "$x^2 + 3x - 4 = 0$", "$\\frac{{1}}{{2}}$", "$\\sqrt{{16}}$", "$\\sin(\\theta)$") or double dollar signs for standalone/display equations (e.g. "$$\\int_0^1 x^2\\,dx$$"). Never write math as plain text or ASCII approximations (no "x^2" outside of LaTeX, no "sqrt(x)", no "1/2" as bare text) -- always use proper LaTeX so it can be rendered. Plain prose sentences around the math do not need LaTeX, only the mathematical notation itself.
+=== MATH FORMATTING (read carefully, this is checked) ===
+Every mathematical expression, symbol, equation, or notation anywhere in "question", "choices[].text", "choices[].explanation", and "solution" must be written in LaTeX -- never plain text or ASCII approximations (no "x^2" outside LaTeX, no "sqrt(x)", no "1/2" as bare text, no "theta", no "<=" or ">="). Wrap inline math in single dollar signs: "$...$". Wrap standalone/display equations that should get their own line in double dollar signs: "$$...$$". Plain English sentences around the math do not need LaTeX -- only the notation itself.
+
+Use these exact LaTeX conventions (all are supported by the renderer):
+- Basic operators: $+$ $-$ $\\times$ $\\div$ $=$ $\\neq$ $<$ $>$ $\\leq$ $\\geq$ $\\pm$ $\\approx$
+- Fractions: $\\frac{{a}}{{b}}$ (always use \\frac, never "a/b" as bare text)
+- Exponents & subscripts: $x^2$, $x_i$, $a_n^2$, $10^{{-3}}$
+- Roots: $\\sqrt{{16}}$, $\\sqrt[3]{{27}}$ (cube root), $\\sqrt[n]{{x}}$
+- Trig functions: $\\sin(\\theta)$, $\\cos(x)$, $\\tan(x)$, $\\csc(x)$, $\\sec(x)$, $\\cot(x)$; inverse trig as $\\sin^{{-1}}(x)$ or $\\arcsin(x)$; hyperbolic as $\\sinh(x)$, $\\cosh(x)$, $\\tanh(x)$
+- Logarithms: $\\log(x)$, $\\log_2(x)$ (log base b), $\\ln(x)$ (natural log)
+- Derivatives: $\\frac{{d}}{{dx}}$, $\\frac{{dy}}{{dx}}$, $f'(x)$, $f''(x)$, partial derivatives $\\frac{{\\partial f}}{{\\partial x}}$
+- Integrals: $\\int f(x)\\,dx$, definite integrals $\\int_a^b f(x)\\,dx$, double integrals $\\iint$
+- Limits: $\\lim_{{x \\to a}} f(x)$, $\\lim_{{x \\to \\infty}} f(x)$
+- Summation & product: $\\sum_{{i=1}}^{{n}} i$, $\\prod_{{i=1}}^{{n}} i$
+- Vectors: $\\vec{{v}}$ or $\\mathbf{{v}}$, magnitude $\\|\\vec{{v}}\\|$
+- Matrices: $\\begin{{pmatrix}} a & b \\\\ c & d \\end{{pmatrix}}$ (parentheses) or $\\begin{{bmatrix}} a & b \\\\ c & d \\end{{bmatrix}}$ (brackets)
+- Piecewise functions: $$f(x) = \\begin{{cases}} x^2 & x \\geq 0 \\\\ -x & x < 0 \\end{{cases}}$$
+- Set notation: $\\in$, $\\notin$, $\\subset$, $\\subseteq$, $\\cup$, $\\cap$, $\\emptyset$, $\\mathbb{{R}}$ (reals), $\\mathbb{{N}}$ (naturals), $\\mathbb{{Z}}$ (integers), $\\mathbb{{Q}}$ (rationals)
+- Interval notation: $[a, b]$, $(a, b)$, $[a, b)$
+- Absolute value: $|x|$ or $\\left| x \\right|$ for larger expressions
+- Combinatorics: $\\binom{{n}}{{k}}$, factorial $n!$, permutations $P(n,k)$, combinations $C(n,k)$
+- Greek letters: $\\alpha$, $\\beta$, $\\gamma$, $\\theta$, $\\pi$, $\\lambda$, $\\mu$, $\\sigma$, $\\omega$, $\\Delta$, $\\Sigma$, $\\Omega$
+- Special symbols: $\\infty$, $\\to$ (arrow), $\\Rightarrow$, $\\Leftrightarrow$, $30^\\circ$ (degrees), $\\%$ (percent), $\\cdot$ (multiplication dot)
+- Use \\left( and \\right) (etc.) instead of plain ( ) when they wrap a tall expression like a fraction, so the parentheses scale correctly.
+
+=== GRAPH QUESTIONS ===
+If the topic/prompt is about graphing, reading a graph, identifying features of a function's graph, or any question would clearly benefit from a visual plot, include an optional "graph" field on that question (omit it entirely for questions that don't need one). It must be one of these two shapes:
+- Equation form (for a continuous function): {{"type": "equation", "equation": "x^2 - 4", "x_min": -10, "x_max": 10}}. "equation" is a function of x in plain math notation (NOT LaTeX here -- use "sin(x)", "sqrt(x)", "x^2", "2*x+1", standard operators + - * / ^ and functions sin, cos, tan, sqrt, abs, log, ln, exp). "x_min"/"x_max" are optional (default to -10..10).
+- Points form (for discrete/scatter data): {{"type": "points", "points": [[0, 1], [1, 3], [2, 5]]}}, an array of [x, y] number pairs.
+Do not include a "graph" field on questions that are purely symbolic/algebraic with nothing to plot.
+
 Do not include any internal reasoning, revisions, second-guessing, notes, or commentary anywhere in the output, including inside string fields. Do not use markdown code fences.
 Return ONLY a single valid JSON object with exactly this shape:
 
@@ -93,6 +127,7 @@ Return ONLY a single valid JSON object with exactly this shape:
   "questions": [
     {{
       "question": "string",
+      "graph": {{"type": "equation", "equation": "x^2 - 4", "x_min": -10, "x_max": 10}},
       "choices": [
         {{"label": "A", "text": "string", "correct": true, "explanation": ""}},
         {{"label": "B", "text": "string", "correct": false, "explanation": "why this is wrong"}},
@@ -104,7 +139,7 @@ Return ONLY a single valid JSON object with exactly this shape:
   ]
 }}
 
-Exactly one choice per question must have "correct": true; the rest must be "correct": false with a non-empty "explanation". The correct choice's "explanation" should be an empty string."""
+The "graph" field is OPTIONAL -- only include it on questions that involve a graph; leave it out entirely otherwise. Exactly one choice per question must have "correct": true; the rest must be "correct": false with a non-empty "explanation". The correct choice's "explanation" should be an empty string."""
 
 
 def _extract_json_object(raw):
@@ -117,6 +152,38 @@ def _extract_json_object(raw):
     if start == -1 or end == -1 or end < start:
         raise ValueError("The AI didn't return any JSON. Please try again.")
     return json.loads(cleaned[start:end + 1])
+
+
+def _sanitize_graph_field(q):
+    """Validate the optional "graph" field; drop it if malformed rather than failing
+    the whole quiz over a non-essential visual extra."""
+    graph = q.get("graph")
+    if not isinstance(graph, dict):
+        q.pop("graph", None)
+        return
+
+    gtype = graph.get("type")
+    if gtype == "equation" and isinstance(graph.get("equation"), str) and graph["equation"].strip():
+        clean = {"type": "equation", "equation": graph["equation"].strip()}
+        for bound in ("x_min", "x_max"):
+            val = graph.get(bound)
+            if isinstance(val, (int, float)):
+                clean[bound] = val
+        q["graph"] = clean
+    elif gtype == "points" and isinstance(graph.get("points"), list) and graph["points"]:
+        points = []
+        for p in graph["points"]:
+            if (
+                isinstance(p, (list, tuple)) and len(p) == 2
+                and isinstance(p[0], (int, float)) and isinstance(p[1], (int, float))
+            ):
+                points.append([p[0], p[1]])
+        if points:
+            q["graph"] = {"type": "points", "points": points}
+        else:
+            q.pop("graph", None)
+    else:
+        q.pop("graph", None)
 
 
 def _validate_quiz_payload(parsed, topic):
@@ -135,6 +202,7 @@ def _validate_quiz_payload(parsed, topic):
         correct_count = sum(1 for c in choices if c.get("correct"))
         if correct_count != 1:
             raise ValueError(f"Question {i} doesn't have exactly one correct answer. Please try again.")
+        _sanitize_graph_field(q)
 
     title = (parsed.get("title") or "").strip() or (topic[:100] if topic else "Untitled quiz")
     return title, parsed["questions"]
@@ -152,6 +220,13 @@ _PROVIDER_CONFIG = {
         "env_var": "OPENROUTER_API_KEY",
         "display_name": "OpenRouter",
         "supports_json_mode": False,
+    },
+    "gemini": {
+        # Google's OpenAI-compatibility layer -- same request/response shape as the others.
+        "url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+        "env_var": "GEMINI_API_KEY",
+        "display_name": "Gemini",
+        "supports_json_mode": True,
     },
 }
 
@@ -212,10 +287,26 @@ def _generate_quiz_attempt(topic, model_value, count, strict_reminder=False):
             f"The model \"{model}\" doesn't exist on {provider['display_name']} anymore (it may have been retired). "
             "Please pick a different model from the dropdown."
         )
-    if resp.status_code == 400 and provider["supports_json_mode"]:
-        # This provider validates JSON syntax server-side and 400s if the model's output wasn't
-        # valid JSON (often from truncation or a one-off model slip) -- worth retrying, not fatal.
-        raise ValueError(f"{provider['display_name']} rejected the generated output as invalid JSON (HTTP 400).")
+    if resp.status_code in (401, 403):
+        raise RuntimeError(f"{provider['display_name']} rejected the API key. Check {provider['env_var']} in Render.")
+    if resp.status_code == 429:
+        raise RuntimeError(f"{provider['display_name']}'s free quota is exhausted for now.")
+    if resp.status_code == 400:
+        # Some providers (Gemini) also use 400 for an invalid/missing API key, not just bad JSON --
+        # check the error body so a key problem surfaces clearly instead of being retried as if
+        # it were just a one-off malformed-output slip.
+        error_text = ""
+        try:
+            error_text = json.dumps(resp.json()).lower()
+        except ValueError:
+            error_text = resp.text.lower()
+        if "api key" in error_text or "api_key" in error_text or "unauthenticated" in error_text:
+            raise RuntimeError(f"{provider['display_name']} rejected the API key. Check {provider['env_var']} in Render.")
+        if provider["supports_json_mode"]:
+            # This provider validates JSON syntax server-side and 400s if the model's output wasn't
+            # valid JSON (often from truncation or a one-off model slip) -- worth retrying, not fatal.
+            raise ValueError(f"{provider['display_name']} rejected the generated output as invalid JSON (HTTP 400).")
+        raise RuntimeError(f"{provider['display_name']} returned an error (HTTP 400). Try again in a moment.")
     if not resp.ok:
         raise RuntimeError(f"{provider['display_name']} returned an error (HTTP {resp.status_code}). Try again in a moment.")
 
@@ -239,21 +330,37 @@ def _generate_quiz_attempt(topic, model_value, count, strict_reminder=False):
 _MAX_QUIZ_GENERATION_ATTEMPTS = 3
 
 
-def _generate_quiz(topic, model, count):
+def _generate_quiz_with_retries(topic, model, count, max_attempts):
+    """Try one specific model up to max_attempts times, retrying only on schema/JSON
+    validation failures (ValueError) -- those are worth a reminder + reattempt on the
+    same model. Anything else (bad key, quota exhausted, model retired, etc.) bubbles
+    up immediately so the caller can fail over to a different model."""
     last_error = None
-    for attempt in range(_MAX_QUIZ_GENERATION_ATTEMPTS):
+    for attempt in range(max_attempts):
         try:
             return _generate_quiz_attempt(topic, model, count, strict_reminder=attempt > 0)
         except ValueError as exc:
-            # Validation/parsing failure -- the model didn't follow the schema. Worth retrying.
             last_error = exc
             continue
-        except RuntimeError:
-            # Network/API-level failure (404, timeout, bad key, etc.) -- retrying won't help.
-            raise
+    raise RuntimeError(str(last_error))
+
+
+def _generate_quiz(topic, model, count):
+    # Try the requested model first (with a few in-place retries for schema slips), then
+    # automatically fail over through every other configured free model in order -- e.g. if
+    # today's free quota on one provider/model is used up (a 401/403/429), generation just
+    # moves on to the next one instead of failing outright.
+    fallback_order = [model] + [m[0] for m in FREE_MODELS if m[0] != model]
+    last_error = None
+    for i, candidate in enumerate(fallback_order):
+        attempts = _MAX_QUIZ_GENERATION_ATTEMPTS if i == 0 else 1
+        try:
+            return _generate_quiz_with_retries(topic, candidate, count, attempts)
+        except RuntimeError as exc:
+            last_error = exc
+            continue
     raise RuntimeError(
-        f"The AI kept returning improperly formatted quizzes after {_MAX_QUIZ_GENERATION_ATTEMPTS} attempts "
-        f"({last_error}). Try a different model, or fewer questions."
+        f"All available free models failed or are rate-limited right now. Last error: {last_error}"
     )
 
 

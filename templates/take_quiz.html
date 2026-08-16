@@ -78,6 +78,7 @@
         return `
           <div class="quiz-question" data-problem="${pi}" data-submitted="${saved && saved.submitted ? "true" : "false"}">
             <span class="num">${pi + 1}.</span> ${escapeHtml(p.question || "")}
+            ${p.graph ? `<div class="quiz-graph" id="graph-${pi}"></div>` : ""}
             <div class="quiz-choices">${choicesHtml}</div>
             <button type="button" class="submit-answer-btn" data-problem="${pi}" disabled>Submit answer</button>
             <p class="quiz-feedback" id="feedback-${pi}"></p>
@@ -90,6 +91,7 @@
 
     // Restore saved state (selection and/or submission) for each question.
     questions.forEach((p, pi) => {
+      if (p.graph) renderGraphIn(document.getElementById(`graph-${pi}`), p.graph);
       const saved = savedAnswers[String(pi)];
       if (!saved) return;
       const qEl = container.querySelector(`.quiz-question[data-problem="${pi}"]`);

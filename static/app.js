@@ -11,6 +11,165 @@ function renderMathIn(el) {
   });
 }
 
+// ---------- Graph plotting (equation or points, from a question's optional "graph" field) ----------
+// Safe recursive-descent evaluator for simple function-of-x expressions -- no eval()/Function().
+// Supports: + - * / ^, unary minus, parentheses, x, pi, e, and sin/cos/tan/sqrt/abs/log/ln/exp.
+function evalMathExpr(expr, xVal) {
+  const src = expr.replace(/\s+/g, "");
+  let pos = 0;
+
+  function peek() { return src[pos]; }
+  function consume(ch) {
+    if (src[pos] !== ch) throw new Error(`Expected "${ch}" at position ${pos}`);
+    pos++;
+  }
+
+  function parseNumber() {
+    const start = pos;
+    while (pos < src.length && /[0-9.]/.test(src[pos])) pos++;
+    if (pos === start) throw new Error("Expected number");
+    return parseFloat(src.slice(start, pos));
+  }
+
+  function parseIdent() {
+    const start = pos;
+    while (pos < src.length && /[a-zA-Z]/.test(src[pos])) pos++;
+    return src.slice(start, pos);
+  }
+
+  const FUNCS = {
+    sin: Math.sin, cos: Math.cos, tan: Math.tan,
+    sqrt: Math.sqrt, abs: Math.abs, exp: Math.exp,
+    log: Math.log10, ln: Math.log,
+  };
+  const CONSTS = { pi: Math.PI, e: Math.E };
+
+  function parseAtom() {
+    if (peek() === "(") {
+      consume("(");
+      const v = parseExpr();
+      consume(")");
+      return v;
+    }
+    if (/[0-9.]/.test(peek())) return parseNumber();
+    if (/[a-zA-Z]/.test(peek())) {
+      const ident = parseIdent();
+      if (ident === "x") return xVal;
+      if (ident in CONSTS) return CONSTS[ident];
+      if (ident in FUNCS) {
+        consume("(");
+        const arg = parseExpr();
+        consume(")");
+        return FUNCS[ident](arg);
+      }
+      throw new Error(`Unknown identifier "${ident}"`);
+    }
+    throw new Error(`Unexpected character "${peek()}" at position ${pos}`);
+  }
+
+  function parsePow() {
+    const base = parseAtom();
+    if (peek() === "^") {
+      consume("^");
+      const exp = parseUnary(); // right-associative; allows e.g. 2^-1
+      return Math.pow(base, exp);
+    }
+    return base;
+  }
+
+  // Unary minus/plus must bind LOOSER than exponentiation so that -x^2 means -(x^2),
+  // matching standard math convention, not (-x)^2.
+  function parseUnary() {
+    if (peek() === "-") {
+      consume("-");
+      return -parseUnary();
+    }
+    if (peek() === "+") {
+      consume("+");
+      return parseUnary();
+    }
+    return parsePow();
+  }
+
+  function parseTerm() {
+    let value = parseUnary();
+    while (peek() === "*" || peek() === "/") {
+      const op = peek();
+      consume(op);
+      const rhs = parseUnary();
+      value = op === "*" ? value * rhs : value / rhs;
+    }
+    return value;
+  }
+
+  function parseExpr() {
+    let value = parseTerm();
+    while (peek() === "+" || peek() === "-") {
+      const op = peek();
+      consume(op);
+      const rhs = parseTerm();
+      value = op === "+" ? value + rhs : value - rhs;
+    }
+    return value;
+  }
+
+  const result = parseExpr();
+  if (pos !== src.length) throw new Error(`Unexpected trailing input at position ${pos}`);
+  return result;
+}
+
+function renderGraphIn(container, graph) {
+  if (!container || !graph || typeof Chart === "undefined") return;
+
+  const canvas = document.createElement("canvas");
+  canvas.className = "quiz-graph-canvas";
+  container.appendChild(canvas);
+
+  let dataset;
+  if (graph.type === "equation") {
+    const xMin = typeof graph.x_min === "number" ? graph.x_min : -10;
+    const xMax = typeof graph.x_max === "number" ? graph.x_max : 10;
+    const points = [];
+    const steps = 200;
+    for (let i = 0; i <= steps; i++) {
+      const x = xMin + ((xMax - xMin) * i) / steps;
+      try {
+        const y = evalMathExpr(graph.equation, x);
+        if (Number.isFinite(y)) points.push({ x, y });
+      } catch {
+        // Skip points where the expression is undefined (e.g. sqrt of a negative, log of 0) --
+        // this naturally creates gaps in the plotted curve, which is the correct behavior.
+      }
+    }
+    dataset = { data: points, showLine: true, pointRadius: 0, borderWidth: 2 };
+  } else if (graph.type === "points") {
+    const points = graph.points.map(([x, y]) => ({ x, y }));
+    dataset = { data: points, showLine: false, pointRadius: 5 };
+  } else {
+    return;
+  }
+
+  new Chart(canvas, {
+    type: "scatter",
+    data: {
+      datasets: [{
+        ...dataset,
+        borderColor: "#4f46e5",
+        backgroundColor: "#4f46e5",
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { type: "linear", position: "center", grid: { color: "rgba(128,128,128,0.2)" } },
+        y: { type: "linear", position: "center", grid: { color: "rgba(128,128,128,0.2)" } },
+      },
+    },
+  });
+}
+
 // Sidebar collapse
 (function () {
   const btn = document.getElementById("collapseBtn");
@@ -46,6 +205,7 @@ function renderQuizQuestions(questions, container) {
       return `
         <div class="quiz-question" data-problem="${pi}">
           <span class="num">${pi + 1}.</span> ${escapeHtml(p.question || "")}
+          ${p.graph ? `<div class="quiz-graph" id="graph-${pi}"></div>` : ""}
           <div class="quiz-choices">${choicesHtml}</div>
           <p class="quiz-feedback" id="feedback-${pi}"></p>
           <button class="steps-toggle" data-problem="${pi}">Show step-by-step solution</button>
@@ -54,6 +214,10 @@ function renderQuizQuestions(questions, container) {
       `;
     })
     .join("");
+
+  questions.forEach((p, pi) => {
+    if (p.graph) renderGraphIn(document.getElementById(`graph-${pi}`), p.graph);
+  });
 
   container.addEventListener("click", (e) => {
     const choiceBtn = e.target.closest(".choice-btn");
