@@ -1,4 +1,4 @@
-// ---------- Class video call (Jitsi Meet, embedded in-page -- not a separate app/window) ----------
+// ---------- Class video call (Daily.co, embedded in-page -- not a separate app/window) ----------
 // The call lives in a floating widget defined once in base.html, so it's part of every page's
 // DOM. A full page navigation in this classic server-rendered site still means the widget
 // itself gets torn down and rebuilt (and the call briefly reconnects) -- there's no way around
@@ -6,19 +6,22 @@
 // reappears automatically on whatever page loads next (no re-clicking "Join", no separate
 // window/app to manage) via the sessionStorage flag below, and it's genuinely embedded in the
 // site's own UI throughout, not an external application.
+//
+// Daily.co's Prebuilt call UI (as opposed to meet.jit.si) is actually built to be iframe-
+// embedded like this -- meet.jit.si explicitly warns "only meant for demo purposes" and cuts
+// the call at 5 minutes when embedded, which made it unusable here.
 const CLASS_CALL_STORAGE_KEY = "activeClassCall";
 
-function _buildClassCallUrl(room, displayName) {
-  return (
-    `https://meet.jit.si/${encodeURIComponent(room)}` +
-    `#userInfo.displayName="${encodeURIComponent(displayName || "")}"` +
-    `&config.prejoinPageEnabled=false`
-  );
+function _buildClassCallUrl(roomUrl, displayName) {
+  const url = new URL(roomUrl);
+  if (displayName) url.searchParams.set("userName", displayName);
+  return url.toString();
 }
 
-function openClassCall(room, displayName) {
-  sessionStorage.setItem(CLASS_CALL_STORAGE_KEY, JSON.stringify({ room, displayName }));
-  _showClassCallWidget(room, displayName);
+function openClassCall(roomUrl, displayName) {
+  if (!roomUrl) return;
+  sessionStorage.setItem(CLASS_CALL_STORAGE_KEY, JSON.stringify({ roomUrl, displayName }));
+  _showClassCallWidget(roomUrl, displayName);
 }
 
 function closeClassCall() {
@@ -29,12 +32,23 @@ function closeClassCall() {
   if (frame) frame.src = "about:blank"; // actually stops the camera/mic, not just hides the UI
 }
 
-function _showClassCallWidget(room, displayName) {
+function _showClassCallWidget(roomUrl, displayName) {
   const win = document.getElementById("callWindow");
   const frame = document.getElementById("callFrame");
   if (!win || !frame) return;
-  frame.src = _buildClassCallUrl(room, displayName);
+  // Fully tear down any previous embed before loading the new one -- setting src directly to
+  // a new value while a call is already connected is what caused the "I can see myself twice"
+  // bug (the old connection lingers server-side for a few seconds after the iframe's contents
+  // are replaced instead of properly leaving first).
+  if (frame.src && frame.src !== "about:blank" && frame.src === _buildClassCallUrl(roomUrl, displayName)) {
+    win.hidden = false;
+    return; // already showing this exact call, nothing to do
+  }
+  frame.src = "about:blank";
   win.hidden = false;
+  setTimeout(() => {
+    frame.src = _buildClassCallUrl(roomUrl, displayName);
+  }, 50);
 }
 
 // ---------- Floating call widget: restore-on-navigate, drag, close ----------
@@ -50,7 +64,7 @@ function _showClassCallWidget(room, displayName) {
   // Reappear automatically on this fresh page load if a call was active before navigating.
   try {
     const saved = JSON.parse(sessionStorage.getItem(CLASS_CALL_STORAGE_KEY) || "null");
-    if (saved && saved.room) _showClassCallWidget(saved.room, saved.displayName);
+    if (saved && saved.roomUrl) _showClassCallWidget(saved.roomUrl, saved.displayName);
   } catch {
     sessionStorage.removeItem(CLASS_CALL_STORAGE_KEY);
   }

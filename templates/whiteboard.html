@@ -7,39 +7,25 @@
     <h1>Whiteboard</h1>
     <p class="muted small">
       Your own notes board(s) -- draw, highlight, upload images, and write freely. Your
-      teacher can open the same page and edit it live with you. Use the board's own menu
-      (top-left inside the board) to export your notes as a PDF or image.
+      teacher can open the same board and edit it live with you. Excalidraw's live
+      collaboration doesn't work properly inside an embedded frame (its own known
+      limitation), so each page opens in its own tab instead -- once open, it's a real live
+      board, not a static preview. Use the board's own menu (top-left inside the board) to
+      export your notes as a PDF or image.
     </p>
 
     {% if pages %}
-      <div class="wb-page-tabs" id="wbPageTabs">
+      <div class="wb-page-list">
         {% for p in pages %}
-          <button type="button" class="wb-page-tab {{ 'active' if loop.first else '' }}" data-src="{{ p.src_url }}">
+          <a class="card wb-page-card" href="{{ p.src_url }}" target="_blank" rel="noopener">
             {{ p.title or ("Page " ~ loop.index) }}
-          </button>
+            <span class="muted small">Opens live &middot;</span>
+          </a>
         {% endfor %}
-      </div>
-      <div class="whiteboard-embed-wrap">
-        <iframe id="wbFrame" src="{{ pages[0].src_url }}" class="whiteboard-embed-frame" allow="clipboard-write"></iframe>
       </div>
     {% else %}
       <p class="muted">Your teacher hasn't set up a whiteboard page for you yet.</p>
     {% endif %}
   </main>
 </div>
-{% endblock %}
-{% block scripts %}
-<script>
-  const wbTabs = document.getElementById("wbPageTabs");
-  const wbFrame = document.getElementById("wbFrame");
-  if (wbTabs && wbFrame) {
-    wbTabs.addEventListener("click", (e) => {
-      const btn = e.target.closest(".wb-page-tab");
-      if (!btn) return;
-      wbTabs.querySelectorAll(".wb-page-tab").forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      wbFrame.src = btn.dataset.src;
-    });
-  }
-</script>
 {% endblock %}

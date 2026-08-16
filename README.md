@@ -54,7 +54,8 @@ full deletion later.
 | `SUPABASE_URL` | Yes | Your Supabase project URL, e.g. `https://xxxx.supabase.co` |
 | `SUPABASE_ANON_KEY` | Yes | Your Supabase project's `anon` public API key |
 | `ADMIN_EMAIL` | Yes | The email address that becomes admin on first sign-up. Everyone else who signs up becomes a student |
-| `GEMINI_API_KEY` | Yes, for quiz generation | Free key from [aistudio.google.com/apikey](https://aistudio.google.com/apikey) -- quiz generation uses Gemini exclusively now, automatically rotating through 4 free Gemini models (2.5 Flash, 2.5 Flash Lite, 2.0 Flash, 2.0 Flash Lite) as each one's free daily quota runs out |
+| `GEMINI_API_KEY` | Yes, for quiz generation | Free key from [aistudio.google.com/apikey](https://aistudio.google.com/apikey) -- quiz generation uses Gemini exclusively now, automatically rotating through 4 free Gemini models (2.5 Flash, 3.5 Flash, 2.5 Flash Lite, 3.5 Flash Lite) as each one's free daily quota runs out |
+| `CLASS_CALL_URL` | No (class call just won't show up without it) | Your Daily.co room URL for the "Join/Start Class" video call feature -- see the Daily.co setup step below |
 | `PYTHON_VERSION` | Yes, on Render | Set to `3.12.7` -- avoids a build failure where `psycopg2-binary`'s prebuilt wheel doesn't yet support Render's newer default Python |
 
 ## Deploying (Supabase auth + database, Render web service)
@@ -121,6 +122,7 @@ full deletion later.
    - `SUPABASE_ANON_KEY` -- from step 4
    - `ADMIN_EMAIL` -- the email you (the teacher) will sign up with
    - `GEMINI_API_KEY` -- your free key from [aistudio.google.com/apikey](https://aistudio.google.com/apikey) (sign in with a Google account, click "Create API Key", no card needed)
+   - `CLASS_CALL_URL` -- (optional) sign up free at [dashboard.daily.co](https://dashboard.daily.co) (no card needed), create a room (Rooms -> Create room), turn on "Enable knocking" under that room's settings for a waiting room, then set this to the room's URL (looks like `https://your-subdomain.daily.co/your-room-name`). Without this set, the "Join/Start Class" button just won't appear.
 
 8. **Deploy.** Render will build and start the app. The first request creates
    all database tables automatically (`db.create_all()` runs at startup) --

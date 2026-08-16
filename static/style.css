@@ -828,6 +828,26 @@ img.curriculum-viewer {
   border-color: #4f46e5;
 }
 
+.wb-page-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+.wb-page-card-wrap { display: flex; align-items: center; gap: 0.6rem; }
+
+.wb-page-card {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: var(--text);
+  font-weight: 600;
+}
+.wb-page-card:hover { border-color: #4f46e5; }
+
 .whiteboard-embed-wrap {
   position: relative;
   width: 100%;

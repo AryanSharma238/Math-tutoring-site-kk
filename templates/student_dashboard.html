@@ -18,10 +18,12 @@
           </p>
           <p class="countdown" id="countdown"></p>
           <p class="muted small">Repeats weekly &middot; {{ profile.course_name or "No course set" }}</p>
-          <button type="button" class="join-class-btn" id="joinClassBtn"
-            data-room="{{ class_call_room }}" data-name="{{ user.name or user.email }}">
-            Join Class
-          </button>
+          {% if class_call_url %}
+            <button type="button" class="join-class-btn" id="joinClassBtn"
+              data-url="{{ class_call_url }}" data-name="{{ user.name or user.email }}">
+              Join Class
+            </button>
+          {% endif %}
         {% else %}
           <p class="muted">No upcoming classes scheduled yet.</p>
           <p class="muted small">{{ profile.course_name or "No course set" }}</p>
@@ -98,7 +100,7 @@
   const joinClassBtn = document.getElementById("joinClassBtn");
   if (joinClassBtn) {
     joinClassBtn.addEventListener("click", () => {
-      openClassCall(joinClassBtn.dataset.room, joinClassBtn.dataset.name);
+      openClassCall(joinClassBtn.dataset.url, joinClassBtn.dataset.name);
     });
   }
 </script>

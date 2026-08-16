@@ -9,15 +9,24 @@
 
     <section class="card">
       <h3>Class call</h3>
-      <p class="muted small">
-        One shared room -- every student joins the same call you start. The first time you
-        start a class, click the shield icon in the call and turn on "Lobby" so students wait
-        to be let in instead of joining straight away.
-      </p>
-      <button type="button" class="join-class-btn" id="startClassBtn"
-        data-room="{{ class_call_room }}" data-name="{{ user.name or user.email }}">
-        Start Class
-      </button>
+      {% if class_call_url %}
+        <p class="muted small">
+          One shared room -- every student joins the same call you start. If you turned on
+          "Enable knocking" in your Daily.co room settings, students wait in a lobby until
+          you let them in.
+        </p>
+        <button type="button" class="join-class-btn" id="startClassBtn"
+          data-url="{{ class_call_url }}" data-name="{{ user.name or user.email }}">
+          Start Class
+        </button>
+      {% else %}
+        <p class="muted small">
+          Not set up yet. Sign up free at <a href="https://dashboard.daily.co" target="_blank" rel="noopener">dashboard.daily.co</a>
+          (no card needed), create a room (Rooms &rarr; Create room), turn on "Enable knocking"
+          under that room's settings for a waiting room, then set the <code>CLASS_CALL_URL</code>
+          environment variable to the room's URL in Render.
+        </p>
+      {% endif %}
     </section>
   </main>
 </div>
@@ -27,7 +36,7 @@
   const startClassBtn = document.getElementById("startClassBtn");
   if (startClassBtn) {
     startClassBtn.addEventListener("click", () => {
-      openClassCall(startClassBtn.dataset.room, startClassBtn.dataset.name);
+      openClassCall(startClassBtn.dataset.url, startClassBtn.dataset.name);
     });
   }
 </script>

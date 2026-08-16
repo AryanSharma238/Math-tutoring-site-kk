@@ -21,12 +21,22 @@ from models import CurriculumFile, Quiz, SiteEmbed, StudentProfile, TodoItem, Us
 
 GITHUB_REPO = "AryanSharma238/Math-tutoring-site-kk"
 
-# Video call: one fixed Jitsi Meet room shared by the admin and every student. Since the admin
-# only ever runs one class at a time, everyone joining the same room is exactly the desired
-# behavior -- no per-student room bookkeeping needed. meet.jit.si is Jitsi's free public server
-# (no signup, unlimited use); the room name just needs to be unique enough that a stranger
-# wouldn't guess it. Override via env var if you ever want to rotate it.
-CLASS_CALL_ROOM = os.environ.get("CLASS_CALL_ROOM", "M2Channel-AryanSharma-MathTutoring-9f3a")
+# Video call: one fixed room shared by the admin and every student (the admin only ever runs
+# one class at a time, so everyone landing in the same room is exactly right -- no per-student
+# bookkeeping needed).
+#
+# This used to point at meet.jit.si, Jitsi's public server -- but embedding it in an iframe
+# throws its own "Embedding meet.jit.si is only meant for demo purposes... will disconnect in
+# 5 minutes" warning and actually does that, so it's unusable for a real class. Daily.co is
+# built specifically to be embedded like this (their "Prebuilt" call UI is made for exactly
+# this use case) and has a real free tier: 10,000 participant-minutes/month, up to 20
+# participants, waiting-room ("knocking") support per room.
+#
+# One-time setup (a few minutes, no card required): sign up free at https://dashboard.daily.co,
+# create a room from the dashboard (Rooms -> Create room), turn on "Enable knocking" under that
+# room's settings for a waiting room, then set CLASS_CALL_URL below to the room's URL (it looks
+# like https://your-subdomain.daily.co/your-room-name).
+CLASS_CALL_URL = os.environ.get("CLASS_CALL_URL", "")
 
 # In-memory quiz-generation job store. Generation runs in a background thread so the
 # HTTP request that kicks it off returns instantly -- this avoids Render's platform
@@ -679,7 +689,7 @@ def register_routes(app):
             students = User.query.filter_by(is_admin=False).order_by(User.created_at).all()
             return render_template(
                 "admin_dashboard.html", user=user, students=students, active="dashboard",
-                class_call_room=CLASS_CALL_ROOM,
+                class_call_url=CLASS_CALL_URL,
             )
 
         profile = user.profile
@@ -689,7 +699,7 @@ def register_routes(app):
         return render_template(
             "student_dashboard.html", user=user, profile=profile,
             next_class=profile.next_class, active="dashboard",
-            class_call_room=CLASS_CALL_ROOM,
+            class_call_url=CLASS_CALL_URL,
         )
 
     @app.route("/admin/assign-quiz")
