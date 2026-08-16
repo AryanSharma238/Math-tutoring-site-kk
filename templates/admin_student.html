@@ -137,7 +137,9 @@
               {% for homework in profile.homework_files %}
                 <div class="quiz-row">
                   <span class="quiz-row-title">{{ homework.title }}</span>
-                  <a href="{{ url_for('view_homework', file_id=homework.id) }}" target="_blank" class="link-btn">open</a>
+                  <form method="POST" action="{{ url_for('admin_student_homework_delete', user_id=student.id, file_id=homework.id) }}" class="inline-form" onsubmit="return confirm('Remove this PDF homework?');">
+                    <button type="submit" class="link-btn">remove</button>
+                  </form>
                 </div>
               {% else %}
                 <p class="muted small">No PDFs assigned yet.</p>

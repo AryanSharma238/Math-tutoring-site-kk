@@ -1031,6 +1031,17 @@ def register_routes(app):
             flash("Homework PDF assigned to student.")
         return redirect(url_for("admin_student", user_id=user_id))
 
+    @app.route("/admin/student/<int:user_id>/homework/<int:file_id>/delete", methods=["POST"])
+    @login_required
+    @admin_required
+    def admin_student_homework_delete(user_id, file_id):
+        student = User.query.filter_by(id=user_id, is_admin=False).first_or_404()
+        homework = HomeworkFile.query.filter_by(id=file_id, profile_id=student.profile.id).first_or_404()
+        db.session.delete(homework)
+        db.session.commit()
+        flash("Homework PDF removed.")
+        return redirect(url_for("admin_student", user_id=user_id))
+
     @app.route("/admin/student/<int:user_id>/schedule", methods=["POST"])
     @login_required
     @admin_required
