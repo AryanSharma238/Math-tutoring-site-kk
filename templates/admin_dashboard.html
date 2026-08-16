@@ -22,8 +22,10 @@
       {% else %}
         <p class="muted small">
           Not set up yet. Create a room in Whereby, then set the <code>CLASS_CALL_URL</code>
-          environment variable to that room URL in Render (for example
-          <code>https://your-subdomain.whereby.com/your-room-name</code>).
+          environment variable to your participant room URL (for example
+          <code>https://your-subdomain.whereby.com/your-room-name</code>). For host controls,
+          also set <code>CLASS_CALL_HOST_URL</code> to the full host link that includes
+          <code>?roomKey=...</code>.
         </p>
       {% endif %}
     </section>
