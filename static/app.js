@@ -121,16 +121,12 @@ function evalMathExpr(expr, xVal) {
 function renderGraphIn(container, graph) {
   if (!container || !graph || typeof Chart === "undefined") return;
 
-  const canvas = document.createElement("canvas");
-  canvas.className = "quiz-graph-canvas";
-  container.appendChild(canvas);
-
   let dataset;
   if (graph.type === "equation") {
     const xMin = typeof graph.x_min === "number" ? graph.x_min : -10;
     const xMax = typeof graph.x_max === "number" ? graph.x_max : 10;
     const points = [];
-    const steps = 200;
+    const steps = 300;
     for (let i = 0; i <= steps; i++) {
       const x = xMin + ((xMax - xMin) * i) / steps;
       try {
@@ -141,15 +137,28 @@ function renderGraphIn(container, graph) {
         // this naturally creates gaps in the plotted curve, which is the correct behavior.
       }
     }
-    dataset = { data: points, showLine: true, pointRadius: 0, borderWidth: 2 };
+    dataset = { data: points, showLine: true, pointRadius: 0, borderWidth: 2.5, tension: 0 };
   } else if (graph.type === "points") {
     const points = graph.points.map(([x, y]) => ({ x, y }));
-    dataset = { data: points, showLine: false, pointRadius: 5 };
+    dataset = { data: points, showLine: false, pointRadius: 5, pointHoverRadius: 6 };
   } else {
     return;
   }
 
-  new Chart(canvas, {
+  // Server-side validation should already guarantee an equation graph has real points, but
+  // stay defensive: an empty chart with no data looks broken (Chart.js falls back to a bare
+  // 0..1 grid), so just skip rendering entirely rather than show that.
+  if (!dataset.data.length) return;
+
+  const canvas = document.createElement("canvas");
+  canvas.className = "quiz-graph-canvas";
+  container.appendChild(canvas);
+
+  const gridColor = "rgba(128,128,128,0.18)";
+  const zeroLineColor = "rgba(128,128,128,0.55)";
+  const tickColor = "rgba(128,128,128,0.9)";
+
+  const chart = new Chart(canvas, {
     type: "scatter",
     data: {
       datasets: [{
@@ -161,13 +170,42 @@ function renderGraphIn(container, graph) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      animation: false,
+      resizeDelay: 0,
+      layout: { padding: { top: 8, right: 12, bottom: 4, left: 4 } },
       plugins: { legend: { display: false } },
       scales: {
-        x: { type: "linear", position: "center", grid: { color: "rgba(128,128,128,0.2)" } },
-        y: { type: "linear", position: "center", grid: { color: "rgba(128,128,128,0.2)" } },
+        x: {
+          type: "linear",
+          position: "bottom",
+          grid: {
+            color: (ctx) => (ctx.tick.value === 0 ? zeroLineColor : gridColor),
+            lineWidth: (ctx) => (ctx.tick.value === 0 ? 1.5 : 1),
+          },
+          ticks: { color: tickColor, font: { size: 11 } },
+          title: { display: true, text: "x", color: tickColor, font: { size: 12, weight: "600" } },
+        },
+        y: {
+          type: "linear",
+          position: "left",
+          grid: {
+            color: (ctx) => (ctx.tick.value === 0 ? zeroLineColor : gridColor),
+            lineWidth: (ctx) => (ctx.tick.value === 0 ? 1.5 : 1),
+          },
+          ticks: { color: tickColor, font: { size: 11 } },
+          title: { display: true, text: "y", color: tickColor, font: { size: 12, weight: "600" } },
+        },
       },
     },
   });
+
+  // Chart.js's responsive sizing reads the canvas's parent container's layout box at
+  // construction time -- when several graphs are created back-to-back in the same tick (e.g.
+  // rendering a whole quiz's worth of questions at once), the browser hasn't necessarily
+  // settled layout yet and the chart can measure a wrong/zero size and never self-correct.
+  // Forcing one resize on the next animation frame (after layout has definitely settled)
+  // fixes that without waiting on anything fragile like a timeout.
+  requestAnimationFrame(() => chart.resize());
 }
 
 // Sidebar collapse

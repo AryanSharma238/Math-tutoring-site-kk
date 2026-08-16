@@ -1,4 +1,5 @@
 import json
+import math
 import os
 import re
 import threading
@@ -15,7 +16,7 @@ from flask import (
 from io import BytesIO
 from supabase import create_client
 
-from models import ClassSession, CurriculumFile, Quiz, SiteEmbed, StudentProfile, TodoItem, User, db
+from models import CurriculumFile, Quiz, SiteEmbed, StudentProfile, TodoItem, User, db
 
 GITHUB_REPO = "AryanSharma238/Math-tutoring-site-kk"
 
@@ -60,21 +61,15 @@ COMMON_TIMEZONES = [
     "Australia/Sydney", "Pacific/Auckland", "UTC",
 ]
 
-# Each entry: (value sent by the <select>, provider, human label).
-# value = "{provider}|{model id}" -- parsed in _generate_quiz_attempt to pick the right API.
-# Order matters: this is also the automatic-failover order -- if the selected model's daily
-# free quota is exhausted (or it fails for any reason), generation moves on to the next one.
+# Gemini-only now -- every entry is a free Gemini model. Order matters: this is also the
+# automatic-failover order. Since Gemini's free tier is quota'd per-model per-day, quiz
+# generation tries the first one and, if its daily quota is exhausted (or it fails for any
+# other reason), automatically moves on to the next Gemini model instead of stopping.
 FREE_MODELS = [
-    ("gemini|gemini-2.5-flash", "gemini", "Gemini: 2.5 Flash (free)"),
-    ("groq|openai/gpt-oss-20b", "groq", "Groq: GPT-OSS 20B (fastest, free)"),
-    ("groq|llama-3.3-70b-versatile", "groq", "Groq: Llama 3.3 70B (free)"),
-    ("groq|llama-3.1-8b-instant", "groq", "Groq: Llama 3.1 8B Instant (free)"),
-    ("gemini|gemini-2.0-flash", "gemini", "Gemini: 2.0 Flash (free)"),
-    ("openrouter|openai/gpt-oss-20b:free", "openrouter", "OpenRouter: GPT-OSS 20B (free)"),
-    ("openrouter|nvidia/nemotron-3-nano-30b-a3b:free", "openrouter", "OpenRouter: Nemotron Nano 30B (free)"),
-    ("openrouter|google/gemma-4-31b-it:free", "openrouter", "OpenRouter: Gemma 4 31B (free)"),
-    ("openrouter|cohere/north-mini-code:free", "openrouter", "OpenRouter: Cohere North Mini (free)"),
-    ("openrouter|inclusionai/ling-3.0-tiny:free", "openrouter", "OpenRouter: Ling 3.0 Tiny (free)"),
+    ("gemini|gemini-2.5-flash", "gemini", "Gemini 2.5 Flash (free)"),
+    ("gemini|gemini-2.5-flash-lite", "gemini", "Gemini 2.5 Flash Lite (free)"),
+    ("gemini|gemini-2.0-flash", "gemini", "Gemini 2.0 Flash (free)"),
+    ("gemini|gemini-2.0-flash-lite", "gemini", "Gemini 2.0 Flash Lite (free)"),
 ]
 DEFAULT_MODEL = FREE_MODELS[0][0]
 
@@ -91,6 +86,8 @@ The "title" field should be a short, specific, human-readable name for the quiz 
 
 === MATH FORMATTING (read carefully, this is checked) ===
 Every mathematical expression, symbol, equation, or notation anywhere in "question", "choices[].text", "choices[].explanation", and "solution" must be written in LaTeX -- never plain text or ASCII approximations (no "x^2" outside LaTeX, no "sqrt(x)", no "1/2" as bare text, no "theta", no "<=" or ">="). Wrap inline math in single dollar signs: "$...$". Wrap standalone/display equations that should get their own line in double dollar signs: "$$...$$". Plain English sentences around the math do not need LaTeX -- only the notation itself.
+
+CRITICAL JSON ESCAPING RULE: your entire response is parsed as JSON, and LaTeX is full of backslashes. Every single literal backslash you write must be doubled inside the JSON string, or the JSON parser will corrupt it. Write "\\\\theta" (two backslash characters) in your actual output so it decodes to "\\theta" -- writing only one backslash ("\\theta") is INVALID and will silently mangle the command (a lone "\\b" or "\\f" gets read as a control character, wrecking \\begin, \\binom, \\bar, \\boxed, \\frac, \\forall, and anything else starting with b or f). This applies to every backslash: \\frac -> "\\\\frac", \\theta -> "\\\\theta", \\times -> "\\\\times", \\right -> "\\\\right". For a matrix row break, which is itself two backslashes ("\\\\" in rendered LaTeX), write FOUR backslash characters in your JSON output ("\\\\\\\\") so it decodes to two. Double-check every backslash in your response before finishing.
 
 Use these exact LaTeX conventions (all are supported by the renderer):
 - Basic operators: $+$ $-$ $\\times$ $\\div$ $=$ $\\neq$ $<$ $>$ $\\leq$ $\\geq$ $\\pm$ $\\approx$
@@ -116,7 +113,7 @@ Use these exact LaTeX conventions (all are supported by the renderer):
 
 === GRAPH QUESTIONS ===
 If the topic/prompt is about graphing, reading a graph, identifying features of a function's graph, or any question would clearly benefit from a visual plot, include an optional "graph" field on that question (omit it entirely for questions that don't need one). It must be one of these two shapes:
-- Equation form (for a continuous function): {{"type": "equation", "equation": "x^2 - 4", "x_min": -10, "x_max": 10}}. "equation" is a function of x in plain math notation (NOT LaTeX here -- use "sin(x)", "sqrt(x)", "x^2", "2*x+1", standard operators + - * / ^ and functions sin, cos, tan, sqrt, abs, log, ln, exp). "x_min"/"x_max" are optional (default to -10..10).
+- Equation form (for a continuous function): {{"type": "equation", "equation": "x^2 - 4", "x_min": -10, "x_max": 10}}. "equation" MUST be solved explicitly for y as a function of x, in plain math notation (NOT LaTeX here) -- e.g. for the line "2y + 3x = 5", write "equation": "-1.5*x + 2.5" (solved for y), never the unsolved original form. Use "sin(x)", "sqrt(x)", "x^2", "2*x+1", standard operators + - * / ^ and functions sin, cos, tan, sqrt, abs, log, ln, exp -- nothing else (no implicit/multi-variable equations, no "=" sign, no plain "y"). "x_min"/"x_max" are optional (default to -10..10) -- pick a range that actually shows the interesting part of the curve (e.g. its vertex, roots, or asymptote), not an arbitrary default.
 - Points form (for discrete/scatter data): {{"type": "points", "points": [[0, 1], [1, 3], [2, 5]]}}, an array of [x, y] number pairs.
 Do not include a "graph" field on questions that are purely symbolic/algebraic with nothing to plot.
 
@@ -143,6 +140,42 @@ Return ONLY a single valid JSON object with exactly this shape:
 The "graph" field is OPTIONAL -- only include it on questions that involve a graph; leave it out entirely otherwise. Exactly one choice per question must have "correct": true; the rest must be "correct": false with a non-empty "explanation". The correct choice's "explanation" should be an empty string."""
 
 
+def _repair_latex_backslashes(text):
+    """Models are extremely inconsistent about JSON-escaping the backslashes inside their own
+    LaTeX output: they write $\\theta$, $\\begin{pmatrix}...$, etc. as if a single backslash
+    character were enough, when valid JSON requires every literal backslash inside a string to
+    be doubled. The dangerous part is that a *lone* backslash before b/f/n/r/t/u is still
+    syntactically valid JSON -- json.loads just silently decodes it as a control character
+    (backspace, formfeed, CR, tab, or a \\uXXXX escape) and swallows the letter. That's exactly
+    why "\\begin{pmatrix}" was rendering as a stray box glyph followed by "egin{pmatrix}", and
+    "\\frac{3}{2}" as a box glyph followed by "rac{3}{2}" -- \\b and \\f are common LaTeX command
+    starts (\\begin, \\binom, \\bar, \\boxed, \\frac, \\forall...) that collide head-on with
+    JSON's own escape codes. A literal backslash can only legally occur inside a JSON string
+    value, so it's safe to double every run of them in the raw text before parsing -- this turns
+    the model's (invalid-but-common) single-backslash LaTeX into properly escaped JSON, without
+    touching anything else in the payload."""
+    return re.sub(r"\\+", lambda m: m.group(0) * 2, text)
+
+
+_SUSPICIOUS_CONTROL_CHARS = "\x08\x0c\x09\x0d"  # backspace, formfeed, tab, CR
+
+
+def _has_suspicious_control_chars(value):
+    """Detects the telltale sign of under-escaped LaTeX backslashes surviving a "successful"
+    json.loads: a backspace/formfeed/tab/CR control character embedded in decoded text. These
+    are legal JSON escapes on their own so parsing doesn't fail -- but a real quiz question has
+    no legitimate reason to contain one, so finding one means \\b, \\f, \\t, or \\r ate a LaTeX
+    command letter (\\begin, \\frac, \\tan, \\theta, \\times, \\right, ...) rather than being an
+    intentional control character."""
+    if isinstance(value, str):
+        return any(ch in value for ch in _SUSPICIOUS_CONTROL_CHARS)
+    if isinstance(value, dict):
+        return any(_has_suspicious_control_chars(v) for v in value.values())
+    if isinstance(value, list):
+        return any(_has_suspicious_control_chars(v) for v in value)
+    return False
+
+
 def _extract_json_object(raw):
     cleaned = raw.strip()
     if cleaned.startswith("```"):
@@ -152,7 +185,64 @@ def _extract_json_object(raw):
     start, end = cleaned.find("{"), cleaned.rfind("}")
     if start == -1 or end == -1 or end < start:
         raise ValueError("The AI didn't return any JSON. Please try again.")
-    return json.loads(cleaned[start:end + 1])
+    candidate = cleaned[start:end + 1]
+
+    try:
+        parsed = json.loads(candidate)
+        if not _has_suspicious_control_chars(parsed):
+            return parsed
+    except json.JSONDecodeError:
+        pass  # fall through to the repaired parse below
+
+    # Either the parse failed outright, or it "succeeded" but swallowed LaTeX command letters
+    # into control characters -- both point at the same under-escaped-backslash problem.
+    return json.loads(_repair_latex_backslashes(candidate))
+
+
+# Mirrors static/app.js's evalMathExpr -- kept in sync so a graph that passes this server-side
+# check is guaranteed to actually plot something in the browser too.
+_GRAPH_FUNCS = {
+    "sin": math.sin, "cos": math.cos, "tan": math.tan,
+    "sqrt": math.sqrt, "abs": abs, "exp": math.exp,
+    "log": math.log10, "ln": math.log,
+}
+_GRAPH_CONSTS = {"pi": math.pi, "e": math.e}
+_GRAPH_IDENT_RE = re.compile(r"[a-zA-Z]+")
+_GRAPH_ALLOWED_CHARS_RE = re.compile(r"^[0-9a-zA-Z.+\-*/^() ]*$")
+
+
+def _eval_graph_equation(equation, x):
+    """Safely evaluate a plain-math (non-LaTeX) function-of-x string, e.g. "x^2 - 4" or
+    "sin(x)/2". Raises ValueError/ZeroDivisionError/etc. on anything invalid or undefined at x --
+    callers should expect and handle that, same as the client-side evaluator does."""
+    compact = equation.replace(" ", "")
+    if not compact or not _GRAPH_ALLOWED_CHARS_RE.match(compact):
+        raise ValueError("disallowed characters in equation")
+    for ident in _GRAPH_IDENT_RE.findall(compact):
+        if ident == "x" or ident in _GRAPH_FUNCS or ident in _GRAPH_CONSTS:
+            continue
+        raise ValueError(f"unknown identifier \"{ident}\" in equation")
+
+    expr = compact.replace("^", "**")
+    safe_locals = {**_GRAPH_FUNCS, **_GRAPH_CONSTS, "x": x}
+    return eval(expr, {"__builtins__": {}}, safe_locals)  # noqa: S307 -- restricted globals/locals only
+
+
+def _equation_is_plottable(equation, x_min, x_max):
+    """Samples a handful of points across the range and checks at least a couple produce a
+    finite real y -- catches equations the model wrote in an unsolved/implicit form (e.g. the
+    literal "2y + 3x = 5" instead of solving for y) or otherwise-unparseable expressions, so we
+    drop the graph instead of shipping students an empty chart."""
+    finite_count = 0
+    for i in range(9):
+        x = x_min + (x_max - x_min) * i / 8
+        try:
+            y = _eval_graph_equation(equation, x)
+        except Exception:
+            continue
+        if isinstance(y, (int, float)) and math.isfinite(y):
+            finite_count += 1
+    return finite_count >= 2
 
 
 def _sanitize_graph_field(q):
@@ -165,10 +255,15 @@ def _sanitize_graph_field(q):
 
     gtype = graph.get("type")
     if gtype == "equation" and isinstance(graph.get("equation"), str) and graph["equation"].strip():
-        clean = {"type": "equation", "equation": graph["equation"].strip()}
-        for bound in ("x_min", "x_max"):
-            val = graph.get(bound)
-            if isinstance(val, (int, float)):
+        equation = graph["equation"].strip()
+        x_min = graph.get("x_min") if isinstance(graph.get("x_min"), (int, float)) else -10
+        x_max = graph.get("x_max") if isinstance(graph.get("x_max"), (int, float)) else 10
+        if x_min >= x_max or not _equation_is_plottable(equation, x_min, x_max):
+            q.pop("graph", None)
+            return
+        clean = {"type": "equation", "equation": equation}
+        for bound, val in (("x_min", x_min), ("x_max", x_max)):
+            if graph.get(bound) is not None:
                 clean[bound] = val
         q["graph"] = clean
     elif gtype == "points" and isinstance(graph.get("points"), list) and graph["points"]:
@@ -210,20 +305,8 @@ def _validate_quiz_payload(parsed, topic):
 
 
 _PROVIDER_CONFIG = {
-    "groq": {
-        "url": "https://api.groq.com/openai/v1/chat/completions",
-        "env_var": "GROQ_API_KEY",
-        "display_name": "Groq",
-        "supports_json_mode": True,
-    },
-    "openrouter": {
-        "url": "https://openrouter.ai/api/v1/chat/completions",
-        "env_var": "OPENROUTER_API_KEY",
-        "display_name": "OpenRouter",
-        "supports_json_mode": False,
-    },
     "gemini": {
-        # Google's OpenAI-compatibility layer -- same request/response shape as the others.
+        # Google's OpenAI-compatibility layer -- same request/response shape used before.
         "url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
         "env_var": "GEMINI_API_KEY",
         "display_name": "Gemini",
@@ -553,9 +636,8 @@ def register_routes(app):
         user = current_user()
         if user.is_admin:
             students = User.query.filter_by(is_admin=False).order_by(User.created_at).all()
-            slideshow = SiteEmbed.query.filter_by(slot="canva_slideshow").first()
             return render_template(
-                "admin_dashboard.html", user=user, students=students, slideshow=slideshow,
+                "admin_dashboard.html", user=user, students=students, models=FREE_MODELS,
             )
 
         profile = user.profile
@@ -567,10 +649,11 @@ def register_routes(app):
             next_class=profile.next_class, active="dashboard",
         )
 
-    @app.route("/admin/embed/<slot>", methods=["POST"])
+    @app.route("/admin/student/<int:user_id>/embed", methods=["POST"])
     @login_required
     @admin_required
-    def admin_set_embed(slot):
+    def admin_student_set_embed(user_id):
+        student = User.query.filter_by(id=user_id, is_admin=False).first_or_404()
         pasted = request.form.get("embed_code", "")
         # Accept either a full pasted embed blob (iframe/div/script, any line breaks/whitespace)
         # or a bare URL -- pull the iframe src out with a regex so formatting never matters.
@@ -579,22 +662,37 @@ def register_routes(app):
 
         if not src:
             flash("Paste the embed code (or its URL) first.")
-            return redirect(url_for("dashboard"))
+            return redirect(url_for("admin_student", user_id=user_id))
 
         host = urlsplit(src).netloc.lower()
         if not host.endswith("canva.com"):
             flash("Only canva.com embed links are allowed.")
-            return redirect(url_for("dashboard"))
+            return redirect(url_for("admin_student", user_id=user_id))
 
-        embed = SiteEmbed.query.filter_by(slot=slot).first()
+        embed = SiteEmbed.query.filter_by(profile_id=student.profile.id).first()
         if embed is None:
-            embed = SiteEmbed(slot=slot, src_url=src)
+            embed = SiteEmbed(profile_id=student.profile.id, src_url=src)
             db.session.add(embed)
         else:
             embed.src_url = src
         db.session.commit()
         flash("Slideshow updated.")
-        return redirect(url_for("dashboard"))
+        return redirect(url_for("admin_student", user_id=user_id))
+
+    @app.route("/slideshow")
+    @login_required
+    def slideshow():
+        user = current_user()
+        if user.is_admin:
+            return redirect(url_for("dashboard"))
+        profile = user.profile
+        if not profile or not profile.setup_complete:
+            return render_template("waiting.html", user=user)
+
+        embed = SiteEmbed.query.filter_by(profile_id=profile.id).first()
+        return render_template(
+            "slideshow.html", user=user, profile=profile, embed=embed, active="slideshow",
+        )
 
     @app.route("/quizzes")
     @login_required
@@ -810,45 +908,39 @@ def register_routes(app):
             flash("Curriculum uploaded.")
         return redirect(url_for("admin_student", user_id=user_id))
 
-    @app.route("/admin/student/<int:user_id>/classes", methods=["POST"])
+    @app.route("/admin/student/<int:user_id>/schedule", methods=["POST"])
     @login_required
     @admin_required
-    def admin_student_add_class(user_id):
+    def admin_student_set_schedule(user_id):
+        """Set the student's weekly recurring class time once -- "next class" is then always
+        computed from this automatically, no manual re-adding needed week to week."""
         student = User.query.filter_by(id=user_id, is_admin=False).first_or_404()
-        date_str = request.form.get("class_date")
-        time_str = request.form.get("class_time")
-        tz_name = request.form.get("class_timezone") or student.profile.timezone
-        try:
-            repeat_weeks = max(min(int(request.form.get("repeat_weeks", 1)), 52), 1)
-        except (ValueError, TypeError):
-            repeat_weeks = 1
+        profile = student.profile
+        weekday_str = request.form.get("class_weekday", "")
+        time_str = request.form.get("class_time", "")
 
-        try:
-            from zoneinfo import ZoneInfo
-            naive = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
-            local_dt = naive.replace(tzinfo=ZoneInfo(tz_name))
-            utc_dt = local_dt.astimezone(dt_timezone.utc).replace(tzinfo=None)
-        except Exception:
-            flash("Invalid date/time/timezone.")
+        if weekday_str == "" or not time_str:
+            profile.class_weekday = None
+            profile.class_time = None
+            db.session.commit()
+            flash("Weekly class time cleared.")
             return redirect(url_for("admin_student", user_id=user_id))
 
-        for week in range(repeat_weeks):
-            db.session.add(ClassSession(
-                profile_id=student.profile.id,
-                start_at=utc_dt + timedelta(weeks=week),
-            ))
-        db.session.commit()
-        flash(f"Scheduled {repeat_weeks} class(es)." if repeat_weeks > 1 else "Class scheduled.")
-        return redirect(url_for("admin_student", user_id=user_id))
+        try:
+            weekday = int(weekday_str)
+            if not (0 <= weekday <= 6):
+                raise ValueError
+            hour, minute = (int(p) for p in time_str.split(":"))
+            if not (0 <= hour <= 23 and 0 <= minute <= 59):
+                raise ValueError
+        except (ValueError, TypeError):
+            flash("Invalid day or time.")
+            return redirect(url_for("admin_student", user_id=user_id))
 
-    @app.route("/admin/student/<int:user_id>/classes/<int:class_id>/delete", methods=["POST"])
-    @login_required
-    @admin_required
-    def admin_student_delete_class(user_id, class_id):
-        student = User.query.filter_by(id=user_id, is_admin=False).first_or_404()
-        cls = ClassSession.query.filter_by(id=class_id, profile_id=student.profile.id).first_or_404()
-        db.session.delete(cls)
+        profile.class_weekday = weekday
+        profile.class_time = f"{hour:02d}:{minute:02d}"
         db.session.commit()
+        flash("Weekly class time saved.")
         return redirect(url_for("admin_student", user_id=user_id))
 
     @app.route("/admin/student/<int:user_id>/quiz/generate/start", methods=["POST"])
@@ -864,8 +956,8 @@ def register_routes(app):
         except (ValueError, TypeError):
             count = 5
 
-        if not os.environ.get("OPENROUTER_API_KEY"):
-            return {"error": "Server is missing OPENROUTER_API_KEY -- ask the admin to set it in Render."}, 400
+        if not os.environ.get("GEMINI_API_KEY"):
+            return {"error": "Server is missing GEMINI_API_KEY -- ask the admin to set it in Render."}, 400
 
         job_id = uuid.uuid4().hex
         with _quiz_jobs_lock:
@@ -924,8 +1016,8 @@ def register_routes(app):
         except (ValueError, TypeError):
             count = 5
 
-        if not os.environ.get("OPENROUTER_API_KEY"):
-            return {"error": "Server is missing OPENROUTER_API_KEY -- ask your teacher to set it up."}, 400
+        if not os.environ.get("GEMINI_API_KEY"):
+            return {"error": "Server is missing GEMINI_API_KEY -- ask your teacher to set it up."}, 400
 
         job_id = uuid.uuid4().hex
         with _quiz_jobs_lock:

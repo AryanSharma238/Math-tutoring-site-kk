@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Slideshow{% endblock %}
+{% block body %}
+<div class="portal">
+  {% include "_student_sidebar.html" %}
+
+  <main class="content">
+    <h1>Slideshow</h1>
+
+    {% if embed %}
+      <div class="slideshow-embed-wrap">
+        <iframe loading="lazy" class="slideshow-embed-frame"
+          src="{{ embed.src_url }}" allowfullscreen="allowfullscreen" allow="fullscreen">
+        </iframe>
+      </div>
+    {% else %}
+      <p class="muted">No slideshow has been shared yet.</p>
+    {% endif %}
+  </main>
+</div>
+{% endblock %}

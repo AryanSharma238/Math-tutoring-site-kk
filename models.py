@@ -1,4 +1,4 @@
-from datetime import datetime, timezone as dt_timezone
+from datetime import datetime, timedelta, timezone as dt_timezone
 
 from flask_sqlalchemy import SQLAlchemy
 
@@ -14,12 +14,11 @@ class TodoItem(db.Model):
 
 
 class SiteEmbed(db.Model):
-    """Single row per admin-pasted embed (e.g. the Canva slideshow) --
-    `slot` is a fixed key like 'canva_slideshow' so there's exactly one row per embed."""
+    """One admin-pasted embed (e.g. a Canva slideshow) per student profile."""
     __tablename__ = "site_embeds"
 
     id = db.Column(db.Integer, primary_key=True)
-    slot = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    profile_id = db.Column(db.Integer, db.ForeignKey("student_profiles.id"), unique=True, nullable=False, index=True)
     src_url = db.Column(db.Text, nullable=False)
     updated_at = db.Column(
         db.DateTime,
@@ -63,24 +62,45 @@ class StudentProfile(db.Model):
     timezone = db.Column(db.String(64), default="America/New_York", nullable=False)
     setup_complete = db.Column(db.Boolean, default=False, nullable=False)
 
+    # Weekly recurring class time -- set once by the admin, then "next class" is always computed
+    # from this instead of needing a fresh one-off entry added by hand every week.
+    # class_weekday: 0=Monday .. 6=Sunday (Python's datetime.weekday() convention).
+    class_weekday = db.Column(db.Integer, nullable=True)
+    class_time = db.Column(db.String(5), nullable=True)  # "HH:MM", 24-hour, in `timezone`
+
     curriculum_files = db.relationship(
         "CurriculumFile", backref="profile", cascade="all, delete-orphan",
         order_by="CurriculumFile.uploaded_at.desc()",
-    )
-    class_sessions = db.relationship(
-        "ClassSession", backref="profile", cascade="all, delete-orphan",
-        order_by="ClassSession.start_at",
     )
     quizzes = db.relationship(
         "Quiz", backref="profile", cascade="all, delete-orphan",
         order_by="Quiz.created_at.desc()",
     )
+    embed = db.relationship(
+        "SiteEmbed", backref="profile", uselist=False, cascade="all, delete-orphan",
+    )
 
     @property
     def next_class(self):
-        now = datetime.now(dt_timezone.utc)
-        upcoming = [c for c in self.class_sessions if c.start_at.replace(tzinfo=dt_timezone.utc) >= now]
-        return upcoming[0] if upcoming else None
+        """The next occurrence of the weekly recurring class time, computed on the fly --
+        no manually-added one-off session rows to maintain."""
+        if self.class_weekday is None or not self.class_time:
+            return None
+        try:
+            from zoneinfo import ZoneInfo
+            hour, minute = (int(p) for p in self.class_time.split(":"))
+            tz = ZoneInfo(self.timezone)
+        except Exception:
+            return None
+
+        now_local = datetime.now(tz)
+        days_ahead = (self.class_weekday - now_local.weekday()) % 7
+        candidate = (now_local + timedelta(days=days_ahead)).replace(
+            hour=hour, minute=minute, second=0, microsecond=0
+        )
+        if candidate < now_local:
+            candidate += timedelta(days=7)
+        return candidate.astimezone(dt_timezone.utc)
 
     @property
     def latest_curriculum(self):

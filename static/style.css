@@ -332,18 +332,18 @@ button {
   font-size: 0.9rem;
 }
 
-/* Dashboard grid */
+/* Dashboard grid -- "next class" now takes the spot the old classes-left counter used to
+   occupy, so it reads as the primary card instead of a cramped leftover. */
 .dash-grid {
   display: grid;
-  grid-template-columns: 1fr 1.4fr 1.6fr;
+  grid-template-columns: 1.4fr 1.6fr;
   grid-template-rows: auto auto;
   grid-template-areas:
-    "classes next curriculum"
-    "activity activity curriculum";
+    "next curriculum"
+    "activity curriculum";
   gap: 1.25rem;
 }
 
-.dash-grid .classes-left { grid-area: classes; }
 .dash-grid .next-class { grid-area: next; }
 .dash-grid .activity { grid-area: activity; }
 .dash-grid .curriculum { grid-area: curriculum; }
@@ -352,7 +352,6 @@ button {
   .dash-grid {
     grid-template-columns: 1fr;
     grid-template-areas:
-      "classes"
       "next"
       "activity"
       "curriculum";
@@ -698,6 +697,29 @@ img.curriculum-viewer {
 .quiz-graph-canvas {
   width: 100% !important;
   height: 100% !important;
+}
+
+.slideshow-embed-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 960px;
+  height: 0;
+  padding-top: 66.6%;
+  margin-top: 1.2rem;
+  box-shadow: 0 2px 8px 0 rgba(63, 69, 81, 0.16);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.slideshow-embed-frame {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  border: none;
+  padding: 0;
+  margin: 0;
 }
 
 .quiz-choices {

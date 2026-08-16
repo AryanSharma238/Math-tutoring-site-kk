@@ -12,13 +12,15 @@
         <h3>Next class is</h3>
         {% if next_class %}
           <p class="big-text" id="nextClassDate"
-             data-utc="{{ next_class.start_at.isoformat() }}Z"
+             data-utc="{{ next_class.isoformat() }}"
              data-timezone="{{ profile.timezone }}">
             Loading...
           </p>
           <p class="countdown" id="countdown"></p>
+          <p class="muted small">Repeats weekly &middot; {{ profile.course_name or "No course set" }}</p>
         {% else %}
           <p class="muted">No upcoming classes scheduled yet.</p>
+          <p class="muted small">{{ profile.course_name or "No course set" }}</p>
         {% endif %}
       </section>
 
