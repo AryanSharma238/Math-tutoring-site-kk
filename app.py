@@ -11,13 +11,23 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import requests
 from flask import (
-    Flask, abort, flash, redirect, render_template, request,
+    Flask, abort, flash, jsonify, redirect, render_template, request,
     send_file, session, url_for,
 )
 from io import BytesIO
 from supabase import create_client
 
-from models import CurriculumFile, Quiz, SiteEmbed, StudentProfile, TodoItem, User, WhiteboardPage, db
+from models import (
+    Board,
+    BoardCollaborator,
+    CurriculumFile,
+    Quiz,
+    SiteEmbed,
+    StudentProfile,
+    TodoItem,
+    User,
+    db,
+)
 
 GITHUB_REPO = "AryanSharma238/Math-tutoring-site-kk"
 
@@ -531,8 +541,93 @@ _PENDING_COLUMN_MIGRATIONS = [
     # app's new profile_id-only inserts) don't hit a NOT NULL violation.
     "ALTER TABLE site_embeds ADD COLUMN profile_id INTEGER",
     "ALTER TABLE site_embeds ALTER COLUMN slot DROP NOT NULL",
-    "ALTER TABLE student_profiles ADD COLUMN whiteboard_room VARCHAR(32)",
-    "ALTER TABLE student_profiles ADD COLUMN whiteboard_key VARCHAR(32)",
+    "DROP TABLE IF EXISTS whiteboard_pages",
+    "ALTER TABLE student_profiles DROP COLUMN whiteboard_room",
+    "ALTER TABLE student_profiles DROP COLUMN whiteboard_key",
+    "CREATE INDEX IF NOT EXISTS ix_boards_owner_user_id_position ON boards(owner_user_id, position)",
+    "CREATE UNIQUE INDEX IF NOT EXISTS ix_board_collaborators_board_user_unique ON board_collaborators(board_id, user_id)",
+    "ALTER TABLE boards ENABLE ROW LEVEL SECURITY",
+    "ALTER TABLE board_collaborators ENABLE ROW LEVEL SECURITY",
+    "DROP POLICY IF EXISTS boards_select_policy ON boards",
+    """CREATE POLICY boards_select_policy ON boards
+        FOR SELECT USING (
+            owner_user_id IN (SELECT id FROM users WHERE supabase_uid = auth.uid()::text)
+            OR EXISTS (
+                SELECT 1 FROM board_collaborators bc
+                JOIN users u ON u.id = bc.user_id
+                WHERE bc.board_id = boards.id AND u.supabase_uid = auth.uid()::text
+            )
+        )""",
+    "DROP POLICY IF EXISTS boards_insert_policy ON boards",
+    """CREATE POLICY boards_insert_policy ON boards
+        FOR INSERT WITH CHECK (
+            owner_user_id IN (SELECT id FROM users WHERE supabase_uid = auth.uid()::text)
+        )""",
+    "DROP POLICY IF EXISTS boards_update_policy ON boards",
+    """CREATE POLICY boards_update_policy ON boards
+        FOR UPDATE USING (
+            owner_user_id IN (SELECT id FROM users WHERE supabase_uid = auth.uid()::text)
+            OR EXISTS (
+                SELECT 1 FROM board_collaborators bc
+                JOIN users u ON u.id = bc.user_id
+                WHERE bc.board_id = boards.id AND u.supabase_uid = auth.uid()::text AND bc.permission IN ('write', 'owner')
+            )
+        ) WITH CHECK (
+            owner_user_id IN (SELECT id FROM users WHERE supabase_uid = auth.uid()::text)
+            OR EXISTS (
+                SELECT 1 FROM board_collaborators bc
+                JOIN users u ON u.id = bc.user_id
+                WHERE bc.board_id = boards.id AND u.supabase_uid = auth.uid()::text AND bc.permission IN ('write', 'owner')
+            )
+        )""",
+    "DROP POLICY IF EXISTS boards_delete_policy ON boards",
+    """CREATE POLICY boards_delete_policy ON boards
+        FOR DELETE USING (
+            owner_user_id IN (SELECT id FROM users WHERE supabase_uid = auth.uid()::text)
+        )""",
+    "DROP POLICY IF EXISTS board_collaborators_select_policy ON board_collaborators",
+    """CREATE POLICY board_collaborators_select_policy ON board_collaborators
+        FOR SELECT USING (
+            user_id IN (SELECT id FROM users WHERE supabase_uid = auth.uid()::text)
+            OR EXISTS (
+                SELECT 1 FROM boards b
+                JOIN users u ON u.id = b.owner_user_id
+                WHERE b.id = board_collaborators.board_id AND u.supabase_uid = auth.uid()::text
+            )
+        )""",
+    "DROP POLICY IF EXISTS board_collaborators_insert_policy ON board_collaborators",
+    """CREATE POLICY board_collaborators_insert_policy ON board_collaborators
+        FOR INSERT WITH CHECK (
+            EXISTS (
+                SELECT 1 FROM boards b
+                JOIN users u ON u.id = b.owner_user_id
+                WHERE b.id = board_collaborators.board_id AND u.supabase_uid = auth.uid()::text
+            )
+        )""",
+    "DROP POLICY IF EXISTS board_collaborators_update_policy ON board_collaborators",
+    """CREATE POLICY board_collaborators_update_policy ON board_collaborators
+        FOR UPDATE USING (
+            EXISTS (
+                SELECT 1 FROM boards b
+                JOIN users u ON u.id = b.owner_user_id
+                WHERE b.id = board_collaborators.board_id AND u.supabase_uid = auth.uid()::text
+            )
+        ) WITH CHECK (
+            EXISTS (
+                SELECT 1 FROM boards b
+                JOIN users u ON u.id = b.owner_user_id
+                WHERE b.id = board_collaborators.board_id AND u.supabase_uid = auth.uid()::text
+            )
+        )""",
+    "DROP POLICY IF EXISTS board_collaborators_delete_policy ON board_collaborators",
+    """CREATE POLICY board_collaborators_delete_policy ON board_collaborators
+        FOR DELETE USING (
+            EXISTS (
+                SELECT 1 FROM boards b
+                JOIN users u ON u.id = b.owner_user_id
+                WHERE b.id = board_collaborators.board_id AND u.supabase_uid = auth.uid()::text
+            )
+        )""",
 ]
 
 
@@ -637,7 +732,7 @@ def register_routes(app):
             )
             return redirect(url_for("login"))
 
-        _log_in_local_user(result.user.id, email, name)
+        _log_in_local_user(result.user.id, email, name, result.session)
         return redirect(url_for("dashboard"))
 
     @app.route("/auth/login", methods=["POST"])
@@ -664,10 +759,10 @@ def register_routes(app):
             flash("Incorrect email or password.")
             return redirect(url_for("login"))
 
-        _log_in_local_user(result.user.id, email, None)
+        _log_in_local_user(result.user.id, email, None, result.session)
         return redirect(url_for("dashboard"))
 
-    def _log_in_local_user(supabase_uid, email, name):
+    def _log_in_local_user(supabase_uid, email, name, supabase_session):
         user = User.query.filter_by(supabase_uid=supabase_uid).first()
         if not user:
             admin_emails = {
@@ -688,6 +783,9 @@ def register_routes(app):
                 db.session.commit()
 
         session["user_id"] = user.id
+        if supabase_session:
+            session["sb_access_token"] = supabase_session.access_token
+            session["sb_refresh_token"] = supabase_session.refresh_token
 
     @app.route("/logout")
     def logout():
@@ -724,18 +822,42 @@ def register_routes(app):
             "admin_assign_quiz.html", user=current_user(), students=students, active="assign-quiz",
         )
 
-    def _validate_excalidraw_live_url(raw):
-        """Only accept a link that actually points at a live Excalidraw collaboration room:
-        excalidraw.com with a #room=<id>,<key> fragment. A bare excalidraw.com link with no
-        room fragment is just a fresh empty canvas, not a real live session -- Excalidraw only
-        creates a real room once someone has clicked 'Start session' in its own UI."""
-        url = raw.strip()
-        host = urlsplit(url).netloc.lower()
-        if not (host == "excalidraw.com" or host.endswith(".excalidraw.com")):
-            return None
-        if "#room=" not in url:
-            return None
-        return url
+    def _board_owner_for_request(owner_user_id):
+        owner = User.query.filter_by(id=owner_user_id, is_admin=False).first()
+        if owner is None:
+            abort(404)
+        viewer = current_user()
+        if viewer.is_admin:
+            return owner
+        if viewer.id != owner.id:
+            abort(403)
+        return owner
+
+    def _ensure_default_board(owner_user_id):
+        existing = Board.query.filter_by(owner_user_id=owner_user_id).count()
+        if existing:
+            return
+        board = Board(
+            id=str(uuid.uuid4()),
+            owner_user_id=owner_user_id,
+            name="Page 1",
+            position=0,
+            data_json=json.dumps({"elements": [], "appState": {"viewBackgroundColor": "#ffffff"}, "files": {}}),
+        )
+        db.session.add(board)
+        db.session.commit()
+
+    def _board_query_for_owner(owner_user_id):
+        return Board.query.filter_by(owner_user_id=owner_user_id).order_by(Board.position, Board.created_at)
+
+    def _board_to_dict(board):
+        return {
+            "id": board.id,
+            "name": board.name,
+            "position": board.position,
+            "thumbnailSvg": board.thumbnail_svg,
+            "updatedAt": board.updated_at.isoformat() if board.updated_at else None,
+        }
 
     @app.route("/whiteboard")
     @login_required
@@ -746,8 +868,16 @@ def register_routes(app):
         profile = user.profile
         if not profile or not profile.setup_complete:
             return render_template("waiting.html", user=user)
+        _ensure_default_board(user.id)
         return render_template(
-            "whiteboard.html", user=user, pages=profile.whiteboard_pages, active="whiteboard",
+            "whiteboard.html",
+            user=user,
+            owner_user=user,
+            students=None,
+            active="whiteboard",
+            supabase_url=os.environ.get("SUPABASE_URL", ""),
+            supabase_anon_key=os.environ.get("SUPABASE_ANON_KEY", ""),
+            supabase_access_token=session.get("sb_access_token", ""),
         )
 
     @app.route("/admin/whiteboards")
@@ -764,46 +894,121 @@ def register_routes(app):
     @admin_required
     def admin_student_whiteboard(user_id):
         student = User.query.filter_by(id=user_id, is_admin=False).first_or_404()
+        _ensure_default_board(student.id)
         admin = current_user()
         students = User.query.filter_by(is_admin=False).order_by(User.created_at).all()
         return render_template(
-            "admin_whiteboard_view.html", user=admin, students=students, student=student,
-            pages=student.profile.whiteboard_pages,
+            "whiteboard.html",
+            user=admin,
+            owner_user=student,
+            students=students,
+            active="whiteboards",
+            supabase_url=os.environ.get("SUPABASE_URL", ""),
+            supabase_anon_key=os.environ.get("SUPABASE_ANON_KEY", ""),
+            supabase_access_token=session.get("sb_access_token", ""),
         )
 
-    @app.route("/admin/student/<int:user_id>/whiteboard/pages", methods=["POST"])
+    @app.route("/api/whiteboard/<int:owner_user_id>/boards", methods=["GET"])
     @login_required
-    @admin_required
-    def admin_student_add_whiteboard_page(user_id):
-        student = User.query.filter_by(id=user_id, is_admin=False).first_or_404()
-        raw_url = request.form.get("src_url", "")
-        title = (request.form.get("title") or "").strip()[:120] or None
-        clean_url = _validate_excalidraw_live_url(raw_url)
-        if not clean_url:
-            flash(
-                "That doesn't look like a live Excalidraw session link. Open excalidraw.com, "
-                "click the menu, choose \"Live collaboration\" -> \"Start session\", then copy "
-                "the URL from your address bar (it should contain #room=) and paste that here."
-            )
-            return redirect(url_for("admin_student_whiteboard", user_id=user_id))
+    def whiteboard_boards(owner_user_id):
+        owner = _board_owner_for_request(owner_user_id)
+        _ensure_default_board(owner.id)
+        boards = [_board_to_dict(b) for b in _board_query_for_owner(owner.id).all()]
+        return jsonify({"boards": boards})
 
-        next_position = len(student.profile.whiteboard_pages)
-        db.session.add(WhiteboardPage(
-            profile_id=student.profile.id, title=title, src_url=clean_url, position=next_position,
-        ))
-        db.session.commit()
-        flash("Whiteboard page added.")
-        return redirect(url_for("admin_student_whiteboard", user_id=user_id))
-
-    @app.route("/admin/student/<int:user_id>/whiteboard/pages/<int:page_id>/delete", methods=["POST"])
+    @app.route("/api/whiteboard/<int:owner_user_id>/boards", methods=["POST"])
     @login_required
-    @admin_required
-    def admin_student_delete_whiteboard_page(user_id, page_id):
-        student = User.query.filter_by(id=user_id, is_admin=False).first_or_404()
-        page = WhiteboardPage.query.filter_by(id=page_id, profile_id=student.profile.id).first_or_404()
-        db.session.delete(page)
+    def whiteboard_create_board(owner_user_id):
+        owner = _board_owner_for_request(owner_user_id)
+        payload = request.get_json(silent=True) or {}
+        name = (payload.get("name") or "").strip()[:120] or "Untitled"
+        next_position = _board_query_for_owner(owner.id).count()
+        board = Board(
+            id=str(uuid.uuid4()),
+            owner_user_id=owner.id,
+            name=name,
+            position=next_position,
+            data_json=json.dumps({"elements": [], "appState": {"viewBackgroundColor": "#ffffff"}, "files": {}}),
+        )
+        db.session.add(board)
+        if current_user().id == owner.id:
+            db.session.add(BoardCollaborator(board_id=board.id, user_id=owner.id, permission="owner"))
         db.session.commit()
-        return redirect(url_for("admin_student_whiteboard", user_id=user_id))
+        return jsonify({"board": _board_to_dict(board)})
+
+    @app.route("/api/whiteboard/<int:owner_user_id>/boards/reorder", methods=["PUT"])
+    @login_required
+    def whiteboard_reorder_boards(owner_user_id):
+        owner = _board_owner_for_request(owner_user_id)
+        payload = request.get_json(silent=True) or {}
+        board_ids = payload.get("boardIds")
+        if not isinstance(board_ids, list):
+            return jsonify({"error": "boardIds must be an array."}), 400
+        boards = _board_query_for_owner(owner.id).all()
+        board_map = {b.id: b for b in boards}
+        if set(board_map.keys()) != set(board_ids):
+            return jsonify({"error": "boardIds do not match current board set."}), 400
+        for position, board_id in enumerate(board_ids):
+            board_map[board_id].position = position
+        db.session.commit()
+        return jsonify({"ok": True})
+
+    @app.route("/api/whiteboard/<int:owner_user_id>/boards/<string:board_id>", methods=["PATCH"])
+    @login_required
+    def whiteboard_update_board(owner_user_id, board_id):
+        owner = _board_owner_for_request(owner_user_id)
+        board = Board.query.filter_by(id=board_id, owner_user_id=owner.id).first_or_404()
+        payload = request.get_json(silent=True) or {}
+        name = payload.get("name")
+        if isinstance(name, str):
+            board.name = name.strip()[:120] or "Untitled"
+        db.session.commit()
+        return jsonify({"board": _board_to_dict(board)})
+
+    @app.route("/api/whiteboard/<int:owner_user_id>/boards/<string:board_id>", methods=["DELETE"])
+    @login_required
+    def whiteboard_delete_board(owner_user_id, board_id):
+        owner = _board_owner_for_request(owner_user_id)
+        board = Board.query.filter_by(id=board_id, owner_user_id=owner.id).first_or_404()
+        db.session.delete(board)
+        db.session.commit()
+        remaining = _board_query_for_owner(owner.id).all()
+        if not remaining:
+            _ensure_default_board(owner.id)
+        for position, item in enumerate(_board_query_for_owner(owner.id).all()):
+            item.position = position
+        db.session.commit()
+        return jsonify({"ok": True})
+
+    @app.route("/api/whiteboard/<int:owner_user_id>/boards/<string:board_id>/state", methods=["GET"])
+    @login_required
+    def whiteboard_board_state(owner_user_id, board_id):
+        owner = _board_owner_for_request(owner_user_id)
+        board = Board.query.filter_by(id=board_id, owner_user_id=owner.id).first_or_404()
+        try:
+            payload = json.loads(board.data_json or "{}")
+        except ValueError:
+            payload = {"elements": [], "appState": {"viewBackgroundColor": "#ffffff"}, "files": {}}
+        return jsonify({
+            "board": _board_to_dict(board),
+            "scene": payload,
+        })
+
+    @app.route("/api/whiteboard/<int:owner_user_id>/boards/<string:board_id>/state", methods=["PUT"])
+    @login_required
+    def whiteboard_save_board_state(owner_user_id, board_id):
+        owner = _board_owner_for_request(owner_user_id)
+        board = Board.query.filter_by(id=board_id, owner_user_id=owner.id).first_or_404()
+        payload = request.get_json(silent=True) or {}
+        scene = payload.get("scene")
+        if not isinstance(scene, dict):
+            return jsonify({"error": "scene must be an object."}), 400
+        board.data_json = json.dumps(scene)
+        thumbnail_svg = payload.get("thumbnailSvg")
+        if isinstance(thumbnail_svg, str):
+            board.thumbnail_svg = thumbnail_svg[:10000]
+        db.session.commit()
+        return jsonify({"ok": True, "updatedAt": board.updated_at.isoformat() if board.updated_at else None})
 
     @app.route("/admin/student/<int:user_id>/embed", methods=["POST"])
     @login_required

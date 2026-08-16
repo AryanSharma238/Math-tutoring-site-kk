@@ -68,11 +68,6 @@ class StudentProfile(db.Model):
     class_weekday = db.Column(db.Integer, nullable=True)
     class_time = db.Column(db.String(5), nullable=True)  # "HH:MM", 24-hour, in `timezone`
 
-    whiteboard_pages = db.relationship(
-        "WhiteboardPage", backref="profile", cascade="all, delete-orphan",
-        order_by="WhiteboardPage.position",
-    )
-
     curriculum_files = db.relationship(
         "CurriculumFile", backref="profile", cascade="all, delete-orphan",
         order_by="CurriculumFile.uploaded_at.desc()",
@@ -126,20 +121,32 @@ class StudentProfile(db.Model):
         return max(completed, key=lambda q: q.completed_at)
 
 
-class WhiteboardPage(db.Model):
-    """One live Excalidraw collaboration room, acting as a single 'page' of a student's
-    whiteboard (several of these in order = a Canva-slideshow-style multi-page board).
-    src_url must be a REAL link Excalidraw generated after someone actually clicked
-    'Start session' -- a made-up #room= hash is not an active room, Excalidraw only treats
-    a room as live once its own backend has registered it that way."""
-    __tablename__ = "whiteboard_pages"
+class Board(db.Model):
+    __tablename__ = "boards"
+
+    id = db.Column(db.String(36), primary_key=True)
+    owner_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    name = db.Column(db.String(120), nullable=False)
+    position = db.Column(db.Integer, nullable=False, default=0)
+    data_json = db.Column(db.Text, nullable=False, default="{}")
+    thumbnail_svg = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(dt_timezone.utc), nullable=False)
+    updated_at = db.Column(
+        db.DateTime,
+        default=lambda: datetime.now(dt_timezone.utc),
+        onupdate=lambda: datetime.now(dt_timezone.utc),
+        nullable=False,
+    )
+
+
+class BoardCollaborator(db.Model):
+    __tablename__ = "board_collaborators"
 
     id = db.Column(db.Integer, primary_key=True)
-    profile_id = db.Column(db.Integer, db.ForeignKey("student_profiles.id"), nullable=False, index=True)
-    title = db.Column(db.String(120), nullable=True)
-    src_url = db.Column(db.Text, nullable=False)
-    position = db.Column(db.Integer, nullable=False, default=0)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(dt_timezone.utc))
+    board_id = db.Column(db.String(36), db.ForeignKey("boards.id"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    permission = db.Column(db.String(16), nullable=False, default="write")
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(dt_timezone.utc), nullable=False)
 
 
 class CurriculumFile(db.Model):
