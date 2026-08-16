@@ -1190,10 +1190,12 @@ img.curriculum-viewer {
 }
 
 .wb-zoom-label {
-  font-size: 0.62rem;
+  font-size: 0.78rem;
   color: var(--muted);
   text-align: center;
 }
+.wb-tool[data-wb="zoomOutBtn"],
+.wb-tool[data-wb="zoomInBtn"] { min-height: 2.45rem; padding: 0.56rem 0.25rem; font-size: 0.85rem; }
 
 .wb-canvas-wrap {
   flex: 1 1 auto;
