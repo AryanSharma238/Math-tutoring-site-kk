@@ -6,6 +6,29 @@
   <main class="content">
     <h1>Dashboard</h1>
     <p class="muted">Select a student from the sidebar to manage their profile, curriculum, class schedule, and quizzes.</p>
+
+    <section class="card">
+      <h3>Slideshow</h3>
+      <p class="muted small">
+        Paste the full embed code Canva gives you (Share &rarr; Embed) -- the whole block, line breaks and all.
+        It's parsed automatically, so pasting doesn't need to be tidy.
+        Shown here in edit mode: it's only actually editable if you're logged into Canva with access to this design.
+      </p>
+      <form method="POST" action="{{ url_for('admin_set_embed', slot='canva_slideshow') }}" class="form-row">
+        <textarea name="embed_code" rows="4" style="width:100%;" placeholder='<div style="position: relative; ..."><iframe src="https://www.canva.com/design/.../view?embed" ...></iframe></div>'>{{ slideshow.src_url if slideshow else "" }}</textarea>
+        <button type="submit">Save slideshow</button>
+      </form>
+
+      {% if slideshow %}
+        <div style="position: relative; width: 100%; height: 0; padding-top: 100.0000%; padding-bottom: 0; box-shadow: 0 2px 8px 0 rgba(63,69,81,0.16); margin-top: 1.6em; margin-bottom: 0.9em; overflow: hidden; border-radius: 8px; will-change: transform;">
+          <iframe loading="lazy" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; border: none; padding: 0; margin: 0;"
+            src="{{ slideshow.edit_src_url }}" allowfullscreen="allowfullscreen" allow="fullscreen">
+          </iframe>
+        </div>
+      {% else %}
+        <p class="muted">No slideshow saved yet.</p>
+      {% endif %}
+    </section>
   </main>
 </div>
 {% endblock %}

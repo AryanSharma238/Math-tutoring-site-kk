@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import threading
 import uuid
 from datetime import datetime, timedelta, timezone as dt_timezone
@@ -14,7 +15,7 @@ from flask import (
 from io import BytesIO
 from supabase import create_client
 
-from models import ClassSession, CurriculumFile, Quiz, StudentProfile, TodoItem, User, db
+from models import ClassSession, CurriculumFile, Quiz, SiteEmbed, StudentProfile, TodoItem, User, db
 
 GITHUB_REPO = "AryanSharma238/Math-tutoring-site-kk"
 
@@ -552,7 +553,10 @@ def register_routes(app):
         user = current_user()
         if user.is_admin:
             students = User.query.filter_by(is_admin=False).order_by(User.created_at).all()
-            return render_template("admin_dashboard.html", user=user, students=students)
+            slideshow = SiteEmbed.query.filter_by(slot="canva_slideshow").first()
+            return render_template(
+                "admin_dashboard.html", user=user, students=students, slideshow=slideshow,
+            )
 
         profile = user.profile
         if not profile or not profile.setup_complete:
@@ -562,6 +566,35 @@ def register_routes(app):
             "student_dashboard.html", user=user, profile=profile,
             next_class=profile.next_class, active="dashboard",
         )
+
+    @app.route("/admin/embed/<slot>", methods=["POST"])
+    @login_required
+    @admin_required
+    def admin_set_embed(slot):
+        pasted = request.form.get("embed_code", "")
+        # Accept either a full pasted embed blob (iframe/div/script, any line breaks/whitespace)
+        # or a bare URL -- pull the iframe src out with a regex so formatting never matters.
+        match = re.search(r'<iframe[^>]*\ssrc=["\']([^"\']+)["\']', pasted, re.IGNORECASE | re.DOTALL)
+        src = match.group(1) if match else pasted.strip()
+
+        if not src:
+            flash("Paste the embed code (or its URL) first.")
+            return redirect(url_for("dashboard"))
+
+        host = urlsplit(src).netloc.lower()
+        if not host.endswith("canva.com"):
+            flash("Only canva.com embed links are allowed.")
+            return redirect(url_for("dashboard"))
+
+        embed = SiteEmbed.query.filter_by(slot=slot).first()
+        if embed is None:
+            embed = SiteEmbed(slot=slot, src_url=src)
+            db.session.add(embed)
+        else:
+            embed.src_url = src
+        db.session.commit()
+        flash("Slideshow updated.")
+        return redirect(url_for("dashboard"))
 
     @app.route("/quizzes")
     @login_required
@@ -743,30 +776,11 @@ def register_routes(app):
 
         student.name = request.form.get("student_name", "").strip() or None
         profile.course_name = request.form.get("course_name", "").strip() or None
-        try:
-            profile.total_classes = max(int(request.form.get("total_classes", 0)), 0)
-        except ValueError:
-            profile.total_classes = 0
         profile.timezone = request.form.get("timezone") or profile.timezone
-        if not profile.setup_complete:
-            profile.classes_left = profile.total_classes
         profile.setup_complete = True
 
         db.session.commit()
         flash("Student profile updated.")
-        return redirect(url_for("admin_student", user_id=user_id))
-
-    @app.route("/admin/student/<int:user_id>/classes_left", methods=["POST"])
-    @login_required
-    @admin_required
-    def admin_student_set_classes_left(user_id):
-        student = User.query.filter_by(id=user_id, is_admin=False).first_or_404()
-        try:
-            student.profile.classes_left = max(int(request.form.get("classes_left", 0)), 0)
-        except ValueError:
-            pass
-        db.session.commit()
-        flash("Classes left updated.")
         return redirect(url_for("admin_student", user_id=user_id))
 
     @app.route("/admin/student/<int:user_id>/curriculum", methods=["POST"])

@@ -8,12 +8,6 @@
     <h1>Dashboard</h1>
 
     <div class="dash-grid">
-      <section class="card classes-left">
-        <h3>Classes left</h3>
-        <p class="big-number">{{ profile.classes_remaining }}</p>
-        <p class="muted">of {{ profile.total_classes }} total &middot; {{ profile.course_name or "No course set" }}</p>
-      </section>
-
       <section class="card next-class">
         <h3>Next class is</h3>
         {% if next_class %}

@@ -13,6 +13,31 @@ class TodoItem(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(dt_timezone.utc))
 
 
+class SiteEmbed(db.Model):
+    """Single row per admin-pasted embed (e.g. the Canva slideshow) --
+    `slot` is a fixed key like 'canva_slideshow' so there's exactly one row per embed."""
+    __tablename__ = "site_embeds"
+
+    id = db.Column(db.Integer, primary_key=True)
+    slot = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    src_url = db.Column(db.Text, nullable=False)
+    updated_at = db.Column(
+        db.DateTime,
+        default=lambda: datetime.now(dt_timezone.utc),
+        onupdate=lambda: datetime.now(dt_timezone.utc),
+    )
+
+    @property
+    def edit_src_url(self):
+        """Same design but pointed at Canva's edit mode instead of view mode.
+        Only actually editable in the browser if the viewer is logged into Canva
+        with edit access to the design -- otherwise Canva shows it read-only anyway,
+        same as it always did."""
+        if "/view" in self.src_url:
+            return self.src_url.replace("/view", "/edit", 1)
+        return self.src_url
+
+
 class User(db.Model):
     __tablename__ = "users"
 
@@ -35,8 +60,6 @@ class StudentProfile(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), unique=True, nullable=False)
 
     course_name = db.Column(db.String(255), nullable=True)
-    total_classes = db.Column(db.Integer, default=0, nullable=False)
-    classes_left = db.Column(db.Integer, default=0, nullable=False)
     timezone = db.Column(db.String(64), default="America/New_York", nullable=False)
     setup_complete = db.Column(db.Boolean, default=False, nullable=False)
 
@@ -52,10 +75,6 @@ class StudentProfile(db.Model):
         "Quiz", backref="profile", cascade="all, delete-orphan",
         order_by="Quiz.created_at.desc()",
     )
-
-    @property
-    def classes_remaining(self):
-        return self.classes_left
 
     @property
     def next_class(self):
