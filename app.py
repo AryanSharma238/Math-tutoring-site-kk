@@ -15,7 +15,10 @@ from flask import (
     send_file, session, url_for,
 )
 from io import BytesIO
-from supabase import create_client
+try:
+    from supabase import create_client
+except ModuleNotFoundError:
+    create_client = None
 
 from models import ClassScheduleSlot, CurriculumFile, HomeworkFile, Quiz, StudentProfile, TodoItem, User, db
 
@@ -74,6 +77,8 @@ _supabase_client = None
 def get_supabase():
     global _supabase_client
     if _supabase_client is None:
+        if create_client is None:
+            raise SupabaseNotConfigured("supabase package is not installed on the server.")
         url = os.environ.get("SUPABASE_URL")
         key = os.environ.get("SUPABASE_ANON_KEY")
         if not url or not key:
@@ -96,6 +101,8 @@ def get_supabase_storage():
     key is set, which only works if the bucket's policy explicitly allows anon inserts."""
     global _supabase_storage_client
     if _supabase_storage_client is None:
+        if create_client is None:
+            raise SupabaseNotConfigured("supabase package is not installed on the server.")
         url = os.environ.get("SUPABASE_URL")
         service_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
         if url and service_key:

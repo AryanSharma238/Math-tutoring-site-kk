@@ -10,6 +10,7 @@
     <div class="dash-grid">
       <section class="card next-class">
         <h3>Upcoming class</h3>
+        <div class="dashboard-counter dashboard-counter-compact"><span>Questions answered</span><strong>{{ profile.questions_answered }}</strong></div>
         {% if next_class %}
           <p class="big-text" id="nextClassDate"
              data-utc="{{ next_class.isoformat() }}"
@@ -24,13 +25,12 @@
               Join Call
             </button>
           {% endif %}
-        {% else %}
-          <div class="dashboard-counter"><span>Questions answered</span><strong>{{ profile.questions_answered }}</strong></div>
         {% endif %}
       </section>
 
       <section class="card curriculum">
         <h3>Curriculum</h3>
+        <div class="dashboard-counter dashboard-counter-compact"><span>Questions answered</span><strong>{{ profile.questions_answered }}</strong></div>
         {% if profile.latest_curriculum %}
           {% set f = profile.latest_curriculum %}
           {% if f.mimetype == 'application/pdf' %}
@@ -39,8 +39,6 @@
             <img src="{{ url_for('serve_curriculum', file_id=f.id) }}" alt="{{ f.filename }}" class="curriculum-viewer">
           {% endif %}
           <p class="muted small">{{ f.filename }}</p>
-        {% else %}
-          <div class="dashboard-counter"><span>Questions answered</span><strong>{{ profile.questions_answered }}</strong></div>
         {% endif %}
       </section>
     </div>
