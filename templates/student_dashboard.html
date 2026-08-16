@@ -8,6 +8,7 @@
     <h1>Dashboard</h1>
 
     <div class="dash-grid">
+      <div class="dash-left-stack">
       <section class="card next-class">
         <h3>Upcoming class</h3>
         {% if next_class %}
@@ -27,6 +28,14 @@
         {% endif %}
       </section>
 
+      <section class="card questions-card">
+        <h3>Questions answered</h3>
+        <div class="dashboard-counter dashboard-counter-standalone">
+          <strong>{{ profile.questions_answered }}</strong>
+        </div>
+      </section>
+      </div>
+
       <section class="card curriculum">
         <h3>Curriculum</h3>
         {% if profile.latest_curriculum %}
@@ -40,12 +49,6 @@
         {% endif %}
       </section>
 
-      <section class="card questions-card">
-        <h3>Questions answered</h3>
-        <div class="dashboard-counter dashboard-counter-standalone">
-          <strong>{{ profile.questions_answered }}</strong>
-        </div>
-      </section>
     </div>
 
     <section class="card assignments-card">

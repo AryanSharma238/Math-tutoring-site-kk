@@ -11,9 +11,12 @@
           <h1>{{ homework.title }}</h1>
           <p class="muted small">{{ homework.filename }}</p>
         </div>
-        <form method="POST" action="{{ url_for('submit_homework', file_id=homework.id) }}">
-          <button type="submit" class="join-class-btn">Submit homework</button>
-        </form>
+        <div class="homework-view-actions">
+          <a href="{{ url_for('dashboard') }}" class="homework-exit-btn">Exit</a>
+          <form method="POST" action="{{ url_for('submit_homework', file_id=homework.id) }}">
+            <button type="submit" class="join-class-btn">Submit homework</button>
+          </form>
+        </div>
       </div>
       <embed src="{{ url_for('serve_homework', file_id=homework.id) }}" type="{{ homework.mimetype }}" class="homework-pdf-viewer">
     </section>
