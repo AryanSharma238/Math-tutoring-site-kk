@@ -179,8 +179,17 @@ window.WB = (function () {
     zoomOutBtn.addEventListener("click", () => setZoom(zoom / 1.2));
 
     canvas.on("mouse:wheel", (opt) => {
-      const delta = opt.e.deltaY;
-      setZoom(zoom * (delta > 0 ? 0.92 : 1.08), { x: opt.e.offsetX, y: opt.e.offsetY });
+      // Trackpad two-finger scrolling pans. Pinch gestures (ctrl/meta on most
+      // browsers) remain zoom, as do the dedicated zoom buttons.
+      if (opt.e.ctrlKey || opt.e.metaKey) {
+        const delta = opt.e.deltaY;
+        setZoom(zoom * (delta > 0 ? 0.92 : 1.08), { x: opt.e.offsetX, y: opt.e.offsetY });
+      } else {
+        const vpt = canvas.viewportTransform;
+        vpt[4] -= opt.e.deltaX || 0;
+        vpt[5] -= opt.e.deltaY || 0;
+        clampPan();
+      }
       opt.e.preventDefault();
       opt.e.stopPropagation();
     });
