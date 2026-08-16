@@ -10,7 +10,6 @@
     <div class="dash-grid">
       <section class="card next-class">
         <h3>Upcoming class</h3>
-        <div class="dashboard-counter dashboard-counter-compact"><span>Questions answered</span><strong>{{ profile.questions_answered }}</strong></div>
         {% if next_class %}
           <p class="big-text" id="nextClassDate"
              data-utc="{{ next_class.isoformat() }}"
@@ -30,7 +29,6 @@
 
       <section class="card curriculum">
         <h3>Curriculum</h3>
-        <div class="dashboard-counter dashboard-counter-compact"><span>Questions answered</span><strong>{{ profile.questions_answered }}</strong></div>
         {% if profile.latest_curriculum %}
           {% set f = profile.latest_curriculum %}
           {% if f.mimetype == 'application/pdf' %}
@@ -40,6 +38,13 @@
           {% endif %}
           <p class="muted small">{{ f.filename }}</p>
         {% endif %}
+      </section>
+
+      <section class="card questions-card">
+        <h3>Questions answered</h3>
+        <div class="dashboard-counter dashboard-counter-standalone">
+          <strong>{{ profile.questions_answered }}</strong>
+        </div>
       </section>
     </div>
 
