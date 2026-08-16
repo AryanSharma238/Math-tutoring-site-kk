@@ -56,6 +56,7 @@ full deletion later.
 | `ADMIN_EMAIL` | Yes | The email address that becomes admin on first sign-up. Everyone else who signs up becomes a student |
 | `GEMINI_API_KEY` | Yes, for quiz generation | Free key from [aistudio.google.com/apikey](https://aistudio.google.com/apikey) -- quiz generation uses Gemini exclusively now, automatically rotating through 4 free Gemini models (2.5 Flash, 3.5 Flash, 2.5 Flash Lite, 3.5 Flash Lite) as each one's free daily quota runs out |
 | `CLASS_CALL_URL` | No (class call just won't show up without it) | Your Daily.co room URL for the "Join/Start Class" video call feature -- see the Daily.co setup step below |
+| `SUPABASE_SERVICE_ROLE_KEY` | No, but recommended if you use the whiteboard's image upload | Lets the server upload to Supabase Storage on a user's behalf. Without it, image uploads fall back to the anon key, which only works if your Storage bucket's policy explicitly allows anonymous inserts -- see the Whiteboard section below |
 | `PYTHON_VERSION` | Yes, on Render | Set to `3.12.7` -- avoids a build failure where `psycopg2-binary`'s prebuilt wheel doesn't yet support Render's newer default Python |
 
 ## Deploying (Supabase auth + database, Render web service)
@@ -150,3 +151,130 @@ ADMIN_EMAIL=you@example.com SECRET_KEY=dev \
 
 Without `DATABASE_URL` set, it falls back to a local `local.db` SQLite file.
 Visit `http://localhost:5000` (or whatever `PORT` you set).
+
+## Collaborative Tutoring Whiteboard
+
+A custom whiteboard built specifically for this site -- not an embedded third-party product.
+Every student has their own persistent workspace; the admin opens any student's board from
+the "Whiteboards" tab and draws on the exact same live board they see. A small pull-tab on
+the left edge of every page (once logged in) opens the current user's board in a fullscreen
+overlay without leaving whatever page they're on.
+
+### What it does
+
+- **Marker (pen) and highlighter** -- freehand drawing, each stroke its own independently
+  selectable/movable/deletable object (not raw pixels on a flat canvas)
+- **Eraser** -- deletes whichever individual stroke/shape/text/image it touches, not pixels;
+  it can't accidentally wipe the whole board
+- **Select** -- click to select one element (or drag a selection box for several), then move,
+  resize, or delete it
+- **Copy / cut / paste** -- `Ctrl/Cmd+C`, `Ctrl/Cmd+X`, `Ctrl/Cmd+V`; pastes are offset from
+  the original so the duplicate is visibly distinct
+- **Undo / redo** -- `Ctrl/Cmd+Z` / `Ctrl/Cmd+Shift+Z`, tracked per operation (one stroke, one
+  move, one delete, one paste), never a full-canvas snapshot
+- **Text** -- click to place an editable text box
+- **Shapes** -- rectangle, circle, line, arrow
+- **Color and stroke width** -- five preset swatches plus a custom color picker; four stroke
+  widths. Changing either only affects strokes/shapes drawn *after* the change
+- **Image upload** -- PNG/JPG/WEBP, stored in Supabase Storage (never as binary data in
+  Postgres), inserted as a movable/resizable/deletable element
+- **Multiple pages** -- add, rename (double-click a page tab), delete, and switch between as
+  many independent pages as needed (tested with 100+); the last remaining page can't be
+  deleted
+- **PDF export** -- "Download PDF" renders every page (not just the visible one) into a
+  single PDF, generated entirely client-side (no server-side rendering cost)
+- **Automatic saving** -- every create/move/edit/delete persists immediately; a failed save
+  never discards local work, it just retries and shows a "Reconnecting..." status until the
+  next poll succeeds
+
+### Access control
+
+- A student can only ever open their own workspace -- there's no ID a student could guess or
+  edit in a URL to reach another student's board; every whiteboard API route re-checks
+  ownership against the logged-in session on every request.
+- The admin can open any student's workspace (this app has exactly one teacher, matching how
+  every other admin feature already works -- there's no multi-teacher assignment model to
+  build against).
+- This is enforced at the **Flask route level**, the same way every other feature in this app
+  is (quizzes, curriculum uploads, class scheduling, the Canva embed) -- not via Postgres Row
+  Level Security. The backend talks to Postgres directly through SQLAlchemy with one trusted
+  database role, not through Supabase's PostgREST/RLS layer, so there's no `auth.uid()`-based
+  policy for RLS to attach to here without a much larger change (issuing each browser session
+  its own Supabase-verified JWT instead of this app's own Flask session, which nothing else in
+  the app does either). If that ever changes app-wide, RLS could be added as a second layer;
+  today the Flask-level checks are the actual and only enforcement.
+
+### Realtime sync
+
+Collaborators poll for changes every ~1.5 seconds rather than holding open a websocket
+connection -- this is a deliberate simplification, not an oversight: this Flask app runs on
+Render's free tier via a standard WSGI server (gunicorn), which isn't set up for long-lived
+websocket connections, and adding one (or wiring the frontend to authenticate directly against
+Supabase Realtime, which requires issuing it a Supabase-verified session the rest of the app
+doesn't use) would be a meaningfully larger change than this feature justified on its own.
+
+In practice this means edits show up for the other person within a second or two, not
+instantly -- and only the elements that actually changed since the last poll are ever sent
+(never the whole page), so it stays cheap even with many elements on a page.
+
+If a poll or a save request fails (network hiccup, server restart), the local canvas is left
+completely untouched and the status indicator switches to "Reconnecting..."; the next
+successful poll picks up exactly where it left off. Nothing is ever lost or cleared on a
+temporary disconnect.
+
+### Data model
+
+```
+Student
+  -> WhiteboardWorkspace   (one per student, auto-created on first open)
+       -> WhiteboardPage   (one or more; a page is an independent canvas)
+            -> WhiteboardElement   (one row per stroke/text/image/shape)
+```
+
+- `whiteboard_workspaces` -- `id`, `profile_id` (FK to the existing `student_profiles` table,
+  unique), timestamps
+- `whiteboard_pages` -- `id`, `workspace_id`, `name`, `position`, timestamps
+- `whiteboard_elements` -- `id` (a client-generated UUID string, not an autoincrement int, so
+  the browser can reference an object the instant it's created, before the server round-trip
+  finishes), `page_id`, `type`, `data` (that object's serialized JSON -- position, color,
+  path points, etc.), `created_by`, timestamps (`updated_at` indexed, since sync polling
+  filters on it)
+- `whiteboard_deletions` -- a small tombstone log (`page_id`, `element_id`, `deleted_at`) so a
+  poller can learn "element X is gone" instead of just never hearing about it again; rows here
+  are safe to prune once every client has polled past that timestamp
+
+No student/teacher/auth tables were duplicated -- everything hangs off the app's existing
+`User` and `StudentProfile` models.
+
+### Storage
+
+Images upload straight to a Supabase Storage bucket named **`whiteboard-uploads`** (create
+this once, manually, as a **public** bucket in your Supabase project's Storage tab -- there's
+no other setup needed there). Only the resulting public URL is stored in
+`whiteboard_elements.data`; no binary image data is ever written to Postgres. Uploads use
+`SUPABASE_SERVICE_ROLE_KEY` if you've set it (recommended -- lets the server write on the
+user's behalf regardless of the bucket's own access policy); without it, uploads fall back to
+the anon key, which only works if you've separately configured that bucket's policy to allow
+anonymous inserts.
+
+### Free-tier considerations
+
+- **Postgres**: one row per whiteboard element. A heavily-used board (thousands of strokes)
+  is still a small amount of relational data -- nothing like storing full-canvas image
+  snapshots would be.
+- **Supabase Storage**: only uploaded images live here, at whatever size the original file
+  was (no server-side resizing yet) -- large uploads will use free-tier storage faster than
+  small ones.
+- **No Supabase Realtime usage** -- sync is plain HTTP polling against this app's own Flask
+  routes, so it doesn't count against Supabase's Realtime concurrent-connection limits at all.
+- This is not unlimited: a large, very active class over months would eventually approach
+  Supabase's free-tier Postgres/Storage caps like any other data in this app (quizzes,
+  curriculum files, etc. share the same database and free tier).
+
+### Removed
+
+The previous whiteboard (one static link per student pointing at an external Excalidraw
+room, embedded in an iframe) has been fully removed -- the `whiteboard_room`/`whiteboard_key`
+columns and the old `whiteboard_pages` schema are dropped automatically on first startup after
+this update (see `_drop_legacy_whiteboard_pages_table` in `app.py`), and no old whiteboard
+templates, routes, or JS remain in the codebase.

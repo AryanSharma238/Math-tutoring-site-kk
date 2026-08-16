@@ -1,31 +1,68 @@
 {% extends "base.html" %}
-{% block title %}Whiteboard{% endblock %}
+{% block title %}{{ board_title }} -- Whiteboard{% endblock %}
 {% block body %}
-<div class="portal">
-  {% include "_student_sidebar.html" %}
-  <main class="content whiteboard-content">
-    <h1>Whiteboard</h1>
-    <p class="muted small">
-      Your own notes board(s) -- draw, highlight, upload images, and write freely. Your
-      teacher can open the same board and edit it live with you. Excalidraw's live
-      collaboration doesn't work properly inside an embedded frame (its own known
-      limitation), so each page opens in its own tab instead -- once open, it's a real live
-      board, not a static preview. Use the board's own menu (top-left inside the board) to
-      export your notes as a PDF or image.
-    </p>
+<div class="wb-shell">
+  <header class="wb-header">
+    <a href="{{ url_for('admin_whiteboards') if admin_students is defined else url_for('dashboard') }}" class="wb-back" title="Back">&larr;</a>
+    <div class="wb-header-titles">
+      <span class="wb-header-name">{{ board_title }}</span>
+      <span class="wb-header-page" id="wbHeaderPage"></span>
+    </div>
+    <span class="wb-status" id="wbStatus">Loading...</span>
+    <button type="button" class="wb-header-btn" id="wbDownloadBtn">Download PDF</button>
+  </header>
 
-    {% if pages %}
-      <div class="wb-page-list">
-        {% for p in pages %}
-          <a class="card wb-page-card" href="{{ p.src_url }}" target="_blank" rel="noopener">
-            {{ p.title or ("Page " ~ loop.index) }}
-            <span class="muted small">Opens live &middot;</span>
-          </a>
-        {% endfor %}
+  <div class="wb-body">
+    <div class="wb-toolbar" id="wbToolbar">
+      <button type="button" class="wb-tool active" data-tool="select" title="Select (V)">Select</button>
+      <button type="button" class="wb-tool" data-tool="pen" title="Pen (P)">Pen</button>
+      <button type="button" class="wb-tool" data-tool="highlighter" title="Highlighter (H)">Marker</button>
+      <button type="button" class="wb-tool" data-tool="eraser" title="Eraser (E) -- drag over a stroke to remove it">Eraser</button>
+      <button type="button" class="wb-tool" data-tool="text" title="Text (T)">Text</button>
+      <div class="wb-tool-group">
+        <button type="button" class="wb-tool" data-tool="rect" title="Rectangle">Rect</button>
+        <button type="button" class="wb-tool" data-tool="circle" title="Circle">Circle</button>
+        <button type="button" class="wb-tool" data-tool="line" title="Line">Line</button>
+        <button type="button" class="wb-tool" data-tool="arrow" title="Arrow">Arrow</button>
       </div>
-    {% else %}
-      <p class="muted">Your teacher hasn't set up a whiteboard page for you yet.</p>
-    {% endif %}
-  </main>
+      <div class="wb-divider"></div>
+      <div class="wb-color-swatches" id="wbColorSwatches" title="Color">
+        <button type="button" class="wb-swatch active" data-color="#1a1a2e" style="background:#1a1a2e"></button>
+        <button type="button" class="wb-swatch" data-color="#dc2626" style="background:#dc2626"></button>
+        <button type="button" class="wb-swatch" data-color="#2563eb" style="background:#2563eb"></button>
+        <button type="button" class="wb-swatch" data-color="#16a34a" style="background:#16a34a"></button>
+        <button type="button" class="wb-swatch" data-color="#f59e0b" style="background:#f59e0b"></button>
+        <input type="color" id="wbColorCustom" class="wb-swatch-custom" title="Custom color" value="#1a1a2e">
+      </div>
+      <div class="wb-divider"></div>
+      <select id="wbStrokeWidth" class="wb-stroke-select" title="Stroke width">
+        <option value="2">Thin</option>
+        <option value="5" selected>Medium</option>
+        <option value="10">Thick</option>
+        <option value="18">Very thick</option>
+      </select>
+      <div class="wb-divider"></div>
+      <button type="button" class="wb-tool" id="wbImageBtn" title="Insert image">Image</button>
+      <input type="file" id="wbImageInput" accept="image/png,image/jpeg,image/webp" hidden>
+    </div>
+
+    <div class="wb-canvas-wrap" id="wbCanvasWrap">
+      <canvas id="wbCanvas"></canvas>
+    </div>
+  </div>
+
+  <div class="wb-pagebar">
+    <button type="button" class="wb-page-add" id="wbAddPage" title="Add page">+</button>
+    <div class="wb-page-tabs" id="wbPageTabs"></div>
+  </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+{% endblock %}
+{% block scripts %}
+<script>
+  window.WB_WORKSPACE_ID = {{ workspace_id }};
+</script>
+<script src="{{ url_for('static', filename='whiteboard.js') }}"></script>
 {% endblock %}

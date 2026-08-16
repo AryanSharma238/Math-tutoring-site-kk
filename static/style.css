@@ -798,77 +798,210 @@ img.curriculum-viewer {
   margin: 0;
 }
 
-/* Whiteboard -- a full working canvas, not a small preview, so it gets most of the viewport
-   instead of being constrained like the slideshow embed. */
-.whiteboard-content { display: flex; flex-direction: column; }
+/* ---------- Whiteboard editor: a native full-page tool, not an embedded product ---------- */
+
+.wb-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.wb-header {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+  flex-shrink: 0;
+}
+
+.wb-back {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 1rem;
+}
+.wb-back:hover { color: var(--text); }
+
+.wb-header-titles {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.wb-header-name { font-weight: 700; }
+.wb-header-page { font-size: 0.78rem; color: var(--muted); }
+
+.wb-status {
+  font-size: 0.8rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.wb-status.wb-status-saving { color: #f59e0b; }
+.wb-status.wb-status-error { color: #dc2626; }
+.wb-status.wb-status-saved { color: #16a34a; }
+
+.wb-header-btn {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.82rem;
+}
+
+.wb-body {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+}
+
+.wb-toolbar {
+  width: 64px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  background: var(--card);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.3rem;
+  padding: 0.5rem 0.35rem;
+  overflow-y: auto;
+}
+
+.wb-tool {
+  padding: 0.45rem 0.2rem;
+  font-size: 0.68rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  line-height: 1.2;
+}
+.wb-tool:hover { background: var(--bg); }
+.wb-tool.active {
+  background: #4f46e5;
+  color: #fff;
+}
+
+.wb-tool-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.2rem;
+}
+.wb-tool-group .wb-tool { font-size: 0.62rem; padding: 0.3rem 0.15rem; }
+
+.wb-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 0.2rem 0.1rem;
+}
+
+.wb-color-swatches {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.25rem;
+  justify-items: center;
+}
+.wb-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+.wb-swatch.active { border-color: var(--text); }
+.wb-swatch-custom {
+  grid-column: span 2;
+  width: 100%;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0;
+  cursor: pointer;
+  background: none;
+}
+
+.wb-stroke-select {
+  font-size: 0.68rem;
+  padding: 0.3rem 0.1rem;
+  border-radius: 6px;
+}
+
+.wb-canvas-wrap {
+  flex: 1 1 auto;
+  position: relative;
+  overflow: hidden;
+  background: #fdfcf7;
+}
+
+.wb-pagebar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid var(--border);
+  background: var(--card);
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+
+.wb-page-add {
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.wb-page-add:hover { border-color: #4f46e5; }
 
 .wb-page-tabs {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  margin-top: 1rem;
+  gap: 0.35rem;
+  flex: 1 1 auto;
+  overflow-x: auto;
 }
 
-.wb-page-tab-wrap { display: flex; align-items: center; gap: 0.2rem; }
-
 .wb-page-tab {
-  padding: 0.45rem 0.9rem;
-  border-radius: 8px 8px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 6px;
   border: 1px solid var(--border);
-  border-bottom: none;
   background: var(--bg);
   color: var(--muted);
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .wb-page-tab.active {
-  background: var(--card);
-  color: var(--text);
-  font-weight: 600;
+  background: #4f46e5;
   border-color: #4f46e5;
-}
-
-.wb-page-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-  margin-top: 1rem;
-}
-
-.wb-page-card-wrap { display: flex; align-items: center; gap: 0.6rem; }
-
-.wb-page-card {
-  flex: 1 1 auto;
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-  text-decoration: none;
-  color: var(--text);
+  color: #fff;
   font-weight: 600;
 }
-.wb-page-card:hover { border-color: #4f46e5; }
-
-.whiteboard-embed-wrap {
-  position: relative;
-  width: 100%;
-  flex: 1 1 auto;
-  min-height: 70vh;
-  margin-top: 1rem;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.whiteboard-embed-frame {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  top: 0;
-  left: 0;
+.wb-page-tab-close {
+  background: none;
   border: none;
-  padding: 0;
-  margin: 0;
+  color: inherit;
+  opacity: 0.7;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0 0.1rem;
+  line-height: 1;
 }
+.wb-page-tab-close:hover { opacity: 1; }
 
 .student-board-list {
   display: flex;
@@ -1972,6 +2105,44 @@ img.curriculum-viewer {
 
 .call-resize-handle {
   display: none; /* native CSS `resize: both` on .call-window already provides this */
+}
+
+/* Whiteboard launcher -- a small pull-tab hugging the left edge on every page. Deliberately
+   thin so it barely protrudes; expands into a fullscreen overlay when clicked. */
+.wb-launch-tab {
+  position: fixed;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  z-index: 950; /* stays above the overlay (900) so clicking it again still closes it */
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  padding: 0.9rem 0.3rem;
+  border: 1px solid var(--border);
+  border-left: none;
+  border-radius: 0 12px 12px 0;
+  background: #4f46e5;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+}
+.wb-launch-tab[hidden] { display: none; }
+
+.wb-launch-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  background: var(--bg);
+}
+.wb-launch-overlay[hidden] { display: none; }
+
+.wb-launch-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
 }
 
 .draw-overlay {

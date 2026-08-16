@@ -17,7 +17,7 @@ from flask import (
 from io import BytesIO
 from supabase import create_client
 
-from models import CurriculumFile, Quiz, SiteEmbed, StudentProfile, TodoItem, User, WhiteboardPage, db
+from models import CurriculumFile, Quiz, SiteEmbed, StudentProfile, TodoItem, User, db
 
 GITHUB_REPO = "AryanSharma238/Math-tutoring-site-kk"
 
@@ -69,6 +69,27 @@ def get_supabase():
             )
         _supabase_client = create_client(url, key)
     return _supabase_client
+
+
+_supabase_storage_client = None
+
+
+def get_supabase_storage():
+    """A separate client for server-side Storage writes (whiteboard image uploads). Prefers
+    SUPABASE_SERVICE_ROLE_KEY -- the anon key is normally blocked from writing to a Storage
+    bucket by that bucket's own access policy, and the service role key is what lets our
+    backend (which already authenticates the user itself via the app's own login, not
+    Supabase's) upload on the user's behalf. Falls back to the anon client if no service role
+    key is set, which only works if the bucket's policy explicitly allows anon inserts."""
+    global _supabase_storage_client
+    if _supabase_storage_client is None:
+        url = os.environ.get("SUPABASE_URL")
+        service_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+        if url and service_key:
+            _supabase_storage_client = create_client(url, service_key)
+        else:
+            _supabase_storage_client = get_supabase()
+    return _supabase_storage_client
 
 COMMON_TIMEZONES = [
     "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles",
@@ -518,8 +539,11 @@ _PENDING_COLUMN_MIGRATIONS = [
     # app's new profile_id-only inserts) don't hit a NOT NULL violation.
     "ALTER TABLE site_embeds ADD COLUMN profile_id INTEGER",
     "ALTER TABLE site_embeds ALTER COLUMN slot DROP NOT NULL",
-    "ALTER TABLE student_profiles ADD COLUMN whiteboard_room VARCHAR(32)",
-    "ALTER TABLE student_profiles ADD COLUMN whiteboard_key VARCHAR(32)",
+    # The old link-based whiteboard (one row per student, pointing at an external Excalidraw
+    # room) is gone -- replaced by the custom object-model whiteboard in whiteboard_routes.py.
+    # These columns belonged only to that old system.
+    "ALTER TABLE student_profiles DROP COLUMN whiteboard_room",
+    "ALTER TABLE student_profiles DROP COLUMN whiteboard_key",
 ]
 
 
@@ -532,6 +556,29 @@ def _run_pending_migrations():
                 conn.commit()
         except Exception:
             pass  # column already exists (or table doesn't exist yet) -- safe to ignore
+
+
+def _drop_legacy_whiteboard_pages_table():
+    """The OLD whiteboard system also had a table literally named "whiteboard_pages", but with
+    completely different columns (profile_id, title, src_url) than the new one (workspace_id,
+    name). db.create_all() only creates tables that don't exist yet, so if the old table is
+    still sitting there from a previous deploy, it would silently block the new schema from
+    ever being created -- drop it first (only if it's still on the OLD schema, detected by the
+    presence of "src_url", so this never touches an already-migrated table) so create_all()
+    below creates it fresh with the right columns. All rows in the old table were just links to
+    external Excalidraw rooms, not real content, so there's nothing worth preserving."""
+    from sqlalchemy import inspect, text
+    try:
+        inspector = inspect(db.engine)
+        if "whiteboard_pages" not in inspector.get_table_names():
+            return
+        columns = {c["name"] for c in inspector.get_columns("whiteboard_pages")}
+        if "src_url" in columns:
+            with db.engine.connect() as conn:
+                conn.execute(text("DROP TABLE whiteboard_pages"))
+                conn.commit()
+    except Exception:
+        pass
 
 
 def create_app():
@@ -549,6 +596,7 @@ def create_app():
     db.init_app(app)
 
     with app.app_context():
+        _drop_legacy_whiteboard_pages_table()
         db.create_all()
         _run_pending_migrations()
 
@@ -711,86 +759,14 @@ def register_routes(app):
             "admin_assign_quiz.html", user=current_user(), students=students, active="assign-quiz",
         )
 
-    def _validate_excalidraw_live_url(raw):
-        """Only accept a link that actually points at a live Excalidraw collaboration room:
-        excalidraw.com with a #room=<id>,<key> fragment. A bare excalidraw.com link with no
-        room fragment is just a fresh empty canvas, not a real live session -- Excalidraw only
-        creates a real room once someone has clicked 'Start session' in its own UI."""
-        url = raw.strip()
-        host = urlsplit(url).netloc.lower()
-        if not (host == "excalidraw.com" or host.endswith(".excalidraw.com")):
-            return None
-        if "#room=" not in url:
-            return None
-        return url
-
-    @app.route("/whiteboard")
-    @login_required
-    def whiteboard():
-        user = current_user()
-        if user.is_admin:
-            return redirect(url_for("admin_whiteboards"))
-        profile = user.profile
-        if not profile or not profile.setup_complete:
-            return render_template("waiting.html", user=user)
-        return render_template(
-            "whiteboard.html", user=user, pages=profile.whiteboard_pages, active="whiteboard",
-        )
-
-    @app.route("/admin/whiteboards")
-    @login_required
-    @admin_required
-    def admin_whiteboards():
-        students = User.query.filter_by(is_admin=False).order_by(User.created_at).all()
-        return render_template(
-            "admin_whiteboards.html", user=current_user(), students=students, active="whiteboards",
-        )
-
-    @app.route("/admin/student/<int:user_id>/whiteboard")
-    @login_required
-    @admin_required
-    def admin_student_whiteboard(user_id):
-        student = User.query.filter_by(id=user_id, is_admin=False).first_or_404()
-        admin = current_user()
-        students = User.query.filter_by(is_admin=False).order_by(User.created_at).all()
-        return render_template(
-            "admin_whiteboard_view.html", user=admin, students=students, student=student,
-            pages=student.profile.whiteboard_pages,
-        )
-
-    @app.route("/admin/student/<int:user_id>/whiteboard/pages", methods=["POST"])
-    @login_required
-    @admin_required
-    def admin_student_add_whiteboard_page(user_id):
-        student = User.query.filter_by(id=user_id, is_admin=False).first_or_404()
-        raw_url = request.form.get("src_url", "")
-        title = (request.form.get("title") or "").strip()[:120] or None
-        clean_url = _validate_excalidraw_live_url(raw_url)
-        if not clean_url:
-            flash(
-                "That doesn't look like a live Excalidraw session link. Open excalidraw.com, "
-                "click the menu, choose \"Live collaboration\" -> \"Start session\", then copy "
-                "the URL from your address bar (it should contain #room=) and paste that here."
-            )
-            return redirect(url_for("admin_student_whiteboard", user_id=user_id))
-
-        next_position = len(student.profile.whiteboard_pages)
-        db.session.add(WhiteboardPage(
-            profile_id=student.profile.id, title=title, src_url=clean_url, position=next_position,
-        ))
-        db.session.commit()
-        flash("Whiteboard page added.")
-        return redirect(url_for("admin_student_whiteboard", user_id=user_id))
-
-    @app.route("/admin/student/<int:user_id>/whiteboard/pages/<int:page_id>/delete", methods=["POST"])
-    @login_required
-    @admin_required
-    def admin_student_delete_whiteboard_page(user_id, page_id):
-        student = User.query.filter_by(id=user_id, is_admin=False).first_or_404()
-        page = WhiteboardPage.query.filter_by(id=page_id, profile_id=student.profile.id).first_or_404()
-        db.session.delete(page)
-        db.session.commit()
-        return redirect(url_for("admin_student_whiteboard", user_id=user_id))
+    # ============ Whiteboard ============
+    # See whiteboard_routes.py for the full route set (workspace/page/element CRUD, image
+    # upload, sync polling) -- kept in its own module since it's a self-contained subsystem
+    # and app.py was already large. Imported lazily here (not at module top) to avoid a
+    # circular import, since it in turn imports login_required/admin_required/current_user
+    # back from this module.
+    from whiteboard_routes import register_whiteboard_routes
+    register_whiteboard_routes(app)
 
     @app.route("/admin/student/<int:user_id>/embed", methods=["POST"])
     @login_required
