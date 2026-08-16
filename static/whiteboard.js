@@ -876,16 +876,20 @@ window.WB = (function () {
       try {
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF({ orientation: "landscape", unit: "px", format: [canvas.getWidth(), canvas.getHeight()] });
+        const exportScale = 2.5;
 
         for (let i = 0; i < pages.length; i++) {
           const page = pages[i];
           const data = await api(`/api/whiteboard/pages/${page.id}/sync`);
           const offCanvas = new fabric.StaticCanvas(null, {
-            width: canvas.getWidth(), height: canvas.getHeight(), backgroundColor: "#ffffff",
+            width: canvas.getWidth() * exportScale,
+            height: canvas.getHeight() * exportScale,
+            backgroundColor: "#ffffff",
           });
           await Promise.all(data.elements.map((el) => addElementToOffscreenCanvas(offCanvas, el.type, el.data)));
+          offCanvas.setZoom(exportScale);
           offCanvas.renderAll();
-          const imgData = offCanvas.toDataURL({ format: "png" });
+          const imgData = offCanvas.toDataURL({ format: "png", multiplier: 1 });
           if (i > 0) pdf.addPage([canvas.getWidth(), canvas.getHeight()], "landscape");
           pdf.addImage(imgData, "PNG", 0, 0, canvas.getWidth(), canvas.getHeight());
           offCanvas.dispose();
