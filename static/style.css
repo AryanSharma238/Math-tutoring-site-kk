@@ -578,6 +578,8 @@ button {
   align-items: start;
 }
 .dash-left-stack { display: flex; flex-direction: column; gap: 1.25rem; min-width: 0; }
+.dash-grid > .dash-left-stack { grid-column: 1; grid-row: 1; }
+.dash-grid > .curriculum { grid-column: 2; grid-row: 1; }
 
 @media (max-width: 900px) {
   .dash-grid { grid-template-columns: 1fr; }
