@@ -65,11 +65,13 @@ COMMON_TIMEZONES = [
 # automatic-failover order. Since Gemini's free tier is quota'd per-model per-day, quiz
 # generation tries the first one and, if its daily quota is exhausted (or it fails for any
 # other reason), automatically moves on to the next Gemini model instead of stopping.
+# gemini-2.0-flash and gemini-2.0-flash-lite were discontinued (June 2026) -- keep this list to
+# models Google currently actually serves. Checked against https://ai.google.dev/gemini-api/docs/models.
 FREE_MODELS = [
     ("gemini|gemini-2.5-flash", "gemini", "Gemini 2.5 Flash (free)"),
+    ("gemini|gemini-3.5-flash", "gemini", "Gemini 3.5 Flash (free)"),
     ("gemini|gemini-2.5-flash-lite", "gemini", "Gemini 2.5 Flash Lite (free)"),
-    ("gemini|gemini-2.0-flash", "gemini", "Gemini 2.0 Flash (free)"),
-    ("gemini|gemini-2.0-flash-lite", "gemini", "Gemini 2.0 Flash Lite (free)"),
+    ("gemini|gemini-3.5-flash-lite", "gemini", "Gemini 3.5 Flash Lite (free)"),
 ]
 DEFAULT_MODEL = FREE_MODELS[0][0]
 
@@ -644,7 +646,7 @@ def register_routes(app):
         if user.is_admin:
             students = User.query.filter_by(is_admin=False).order_by(User.created_at).all()
             return render_template(
-                "admin_dashboard.html", user=user, students=students, models=FREE_MODELS,
+                "admin_dashboard.html", user=user, students=students, active="dashboard",
             )
 
         profile = user.profile
@@ -654,6 +656,15 @@ def register_routes(app):
         return render_template(
             "student_dashboard.html", user=user, profile=profile,
             next_class=profile.next_class, active="dashboard",
+        )
+
+    @app.route("/admin/assign-quiz")
+    @login_required
+    @admin_required
+    def admin_assign_quiz():
+        students = User.query.filter_by(is_admin=False).order_by(User.created_at).all()
+        return render_template(
+            "admin_assign_quiz.html", user=current_user(), students=students, active="assign-quiz",
         )
 
     @app.route("/admin/student/<int:user_id>/embed", methods=["POST"])
@@ -740,8 +751,7 @@ def register_routes(app):
         own_quizzes = [q for q in profile.quizzes if q.is_student_created]
         return render_template(
             "own_quizzes.html", user=user, profile=profile,
-            own_quizzes=own_quizzes, models=FREE_MODELS,
-            active="my-quizzes",
+            own_quizzes=own_quizzes, active="my-quizzes",
         )
 
     @app.route("/quizzes/<int:quiz_id>")
@@ -869,7 +879,7 @@ def register_routes(app):
         students = User.query.filter_by(is_admin=False).order_by(User.created_at).all()
         return render_template(
             "admin_student.html", user=admin, students=students, student=student,
-            profile=student.profile, timezones=COMMON_TIMEZONES, models=FREE_MODELS,
+            profile=student.profile, timezones=COMMON_TIMEZONES,
         )
 
     @app.route("/admin/student/<int:user_id>/update", methods=["POST"])

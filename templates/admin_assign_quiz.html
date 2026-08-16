@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block title %}Assign Quiz{% endblock %}
+{% block body %}
+<div class="portal">
+  {% include "_admin_sidebar.html" %}
+  <main class="content">
+    <h1>Assign Quiz</h1>
+    <p class="muted">Pick a student, describe the quiz, and generate it -- nothing is sent until you review and click "Send to student".</p>
+
+    <section class="card">
+      {% if students %}
+      <form id="quizGenerateForm" class="form-grid">
+        <label>Student
+          <select name="student_id" id="quizStudentSelect" required>
+            <option value="" disabled selected>Choose a student&hellip;</option>
+            {% for s in students %}
+              <option value="{{ s.id }}">{{ s.name or s.email }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>Topic / instructions
+          <textarea name="topic" rows="3" placeholder="e.g. 10-question quiz on quadratic formula, mixed difficulty"></textarea>
+        </label>
+        <label>How many questions
+          <input type="number" name="count" min="1" max="25" value="5">
+        </label>
+        <button type="submit" id="generateQuizBtn">Generate quiz</button>
+      </form>
+      <p class="quiz-status" id="quizStatus"></p>
+
+      <div id="quizPreviewWrap" hidden>
+        <h4>Review before sending</h4>
+        <p class="muted small">Check the questions below. Nothing is sent to the student until you click "Send to student".</p>
+        <div id="quizPreview"></div>
+        <button type="button" id="sendQuizBtn">Send to student</button>
+        <button type="button" id="discardQuizBtn" class="secondary-btn">Discard</button>
+      </div>
+      {% else %}
+        <p class="muted">No students have signed in yet.</p>
+      {% endif %}
+    </section>
+  </main>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  const quizForm = document.getElementById("quizGenerateForm");
+  if (quizForm) {
+    const studentSelect = document.getElementById("quizStudentSelect");
+    const generateBtn = document.getElementById("generateQuizBtn");
+    const statusEl = document.getElementById("quizStatus");
+    const previewWrap = document.getElementById("quizPreviewWrap");
+    const previewEl = document.getElementById("quizPreview");
+    const sendBtn = document.getElementById("sendQuizBtn");
+    const discardBtn = document.getElementById("discardQuizBtn");
+
+    let pendingQuiz = null;
+    let pendingStudentId = null;
+
+    async function safeJson(resp) {
+      const text = await resp.text();
+      try {
+        return JSON.parse(text);
+      } catch {
+        throw new Error("Server returned an unexpected response (not JSON) -- likely a temporary server or network hiccup. Please try again.");
+      }
+    }
+
+    function pollJob(studentId, jobId) {
+      return new Promise((resolve, reject) => {
+        const check = async () => {
+          let data;
+          try {
+            const resp = await fetch(`/admin/student/${studentId}/quiz/generate/status/${jobId}`);
+            data = await safeJson(resp);
+          } catch (err) {
+            reject(err);
+            return;
+          }
+          if (data.status === "pending") {
+            setTimeout(check, 2500);
+          } else if (data.status === "done") {
+            resolve(data.result);
+          } else {
+            reject(new Error(data.error || "Quiz generation failed."));
+          }
+        };
+        check();
+      });
+    }
+
+    quizForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const studentId = studentSelect.value;
+      if (!studentId) return;
+
+      generateBtn.disabled = true;
+      statusEl.textContent = "Loading... generating quiz, this can take a couple of minutes for larger quizzes.";
+      previewWrap.hidden = true;
+
+      const formData = new FormData(quizForm);
+      try {
+        // No model field sent -- the server always starts with its current best free model
+        // and automatically rotates through the others if one is rate-limited or unavailable.
+        const startResp = await fetch(`/admin/student/${studentId}/quiz/generate/start`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            topic: formData.get("topic"),
+            count: formData.get("count"),
+          }),
+        });
+        const startData = await safeJson(startResp);
+        if (!startResp.ok || !startData.job_id) {
+          statusEl.textContent = startData.error || "Could not start quiz generation.";
+          return;
+        }
+
+        const result = await pollJob(studentId, startData.job_id);
+        pendingQuiz = result;
+        pendingStudentId = studentId;
+        statusEl.textContent = `Generated ${result.questions.length} question(s). Review below.`;
+        renderQuizQuestions(result.questions, previewEl);
+        previewWrap.hidden = false;
+      } catch (err) {
+        statusEl.textContent = err.message;
+      } finally {
+        generateBtn.disabled = false;
+      }
+    });
+
+    sendBtn.addEventListener("click", async () => {
+      if (!pendingQuiz || !pendingStudentId) return;
+      sendBtn.disabled = true;
+      statusEl.textContent = "Sending to student...";
+
+      try {
+        const resp = await fetch(`/admin/student/${pendingStudentId}/quiz/assign`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(pendingQuiz),
+        });
+        const data = await safeJson(resp);
+        if (!resp.ok || data.error) {
+          statusEl.textContent = data.error || "Could not assign quiz.";
+          return;
+        }
+
+        statusEl.textContent = `Sent "${data.title}" to the student.`;
+        previewWrap.hidden = true;
+        pendingQuiz = null;
+        pendingStudentId = null;
+        quizForm.reset();
+      } catch (err) {
+        statusEl.textContent = `Error: ${err.message}`;
+      } finally {
+        sendBtn.disabled = false;
+      }
+    });
+
+    discardBtn.addEventListener("click", () => {
+      pendingQuiz = null;
+      pendingStudentId = null;
+      previewWrap.hidden = true;
+      statusEl.textContent = "Discarded.";
+    });
+  }
+</script>
+{% endblock %}

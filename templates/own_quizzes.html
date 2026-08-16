@@ -15,11 +15,6 @@
         <label>How many questions
           <input type="number" name="count" min="1" max="25" value="5">
         </label>
-        <label>Model
-          <select name="model">
-            {% for value, provider, label in models %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
-          </select>
-        </label>
         <button type="submit" id="ownQuizBtn">Generate quiz</button>
       </form>
       <p class="quiz-status" id="ownQuizStatus"></p>
@@ -84,7 +79,6 @@
         body: JSON.stringify({
           topic: formData.get("topic"),
           count: formData.get("count"),
-          model: formData.get("model"),
         }),
       });
       const startData = await safeJsonOwn(startResp);
