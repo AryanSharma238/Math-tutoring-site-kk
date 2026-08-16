@@ -12,7 +12,7 @@
       {% if class_call_url %}
         <p class="muted small">
           One shared room -- every student joins the same call you start. If you turned on
-          "Enable knocking" in your Daily.co room settings, students wait in a lobby until
+          waiting-room/lobby controls in your Whereby room settings, students wait in a lobby until
           you let them in.
         </p>
         <button type="button" class="join-class-btn" id="startClassBtn"
@@ -21,10 +21,11 @@
         </button>
       {% else %}
         <p class="muted small">
-          Not set up yet. Sign up free at <a href="https://dashboard.daily.co" target="_blank" rel="noopener">dashboard.daily.co</a>
-          (no card needed), create a room (Rooms &rarr; Create room), turn on "Enable knocking"
-          under that room's settings for a waiting room, then set the <code>CLASS_CALL_URL</code>
-          environment variable to the room's URL in Render.
+          Not set up yet. Create a room in Whereby, then set the <code>CLASS_CALL_URL</code>
+          environment variable to your participant room URL (for example
+          <code>https://your-subdomain.whereby.com/your-room-name</code>). For host controls,
+          also set <code>CLASS_CALL_HOST_URL</code> to the full host link that includes
+          <code>?roomKey=...</code>.
         </p>
       {% endif %}
     </section>

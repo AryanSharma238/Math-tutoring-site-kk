@@ -1,4 +1,4 @@
-// ---------- Class video call (Daily.co, embedded in-page -- not a separate app/window) ----------
+// ---------- Class video call (Whereby, embedded in-page -- not a separate app/window) ----------
 // The call lives in a floating widget defined once in base.html, so it's part of every page's
 // DOM. A full page navigation in this classic server-rendered site still means the widget
 // itself gets torn down and rebuilt (and the call briefly reconnects) -- there's no way around
@@ -7,14 +7,13 @@
 // window/app to manage) via the sessionStorage flag below, and it's genuinely embedded in the
 // site's own UI throughout, not an external application.
 //
-// Daily.co's Prebuilt call UI (as opposed to meet.jit.si) is actually built to be iframe-
-// embedded like this -- meet.jit.si explicitly warns "only meant for demo purposes" and cuts
-// the call at 5 minutes when embedded, which made it unusable here.
+// Whereby's iframe embed is built exactly for this use case (unlike meet.jit.si's demo-only
+// public embed, which cuts calls at 5 minutes), so the class call remains stable in-page.
 const CLASS_CALL_STORAGE_KEY = "activeClassCall";
 
 function _buildClassCallUrl(roomUrl, displayName) {
   const url = new URL(roomUrl);
-  if (displayName) url.searchParams.set("userName", displayName);
+  if (displayName) url.searchParams.set("displayName", displayName);
   return url.toString();
 }
 

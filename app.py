@@ -11,7 +11,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import requests
 from flask import (
-    Flask, abort, flash, redirect, render_template, request,
+    Flask, abort, flash, jsonify, redirect, render_template, request,
     send_file, session, url_for,
 )
 from io import BytesIO
@@ -27,16 +27,29 @@ GITHUB_REPO = "AryanSharma238/Math-tutoring-site-kk"
 #
 # This used to point at meet.jit.si, Jitsi's public server -- but embedding it in an iframe
 # throws its own "Embedding meet.jit.si is only meant for demo purposes... will disconnect in
-# 5 minutes" warning and actually does that, so it's unusable for a real class. Daily.co is
-# built specifically to be embedded like this (their "Prebuilt" call UI is made for exactly
-# this use case) and has a real free tier: 10,000 participant-minutes/month, up to 20
-# participants, waiting-room ("knocking") support per room.
+# 5 minutes" warning and actually does that, so it's unusable for a real class. Whereby is
+# built specifically to be embedded like this and supports waiting-room style control via room
+# permissions.
 #
-# One-time setup (a few minutes, no card required): sign up free at https://dashboard.daily.co,
-# create a room from the dashboard (Rooms -> Create room), turn on "Enable knocking" under that
-# room's settings for a waiting room, then set CLASS_CALL_URL below to the room's URL (it looks
-# like https://your-subdomain.daily.co/your-room-name).
-CLASS_CALL_URL = os.environ.get("CLASS_CALL_URL", "")
+# One-time setup:
+# - CLASS_CALL_URL: participant room URL (no roomKey) used for students.
+# - CLASS_CALL_HOST_URL: host link (includes roomKey) used for admins.
+# If only CLASS_CALL_HOST_URL is set, students automatically get the same URL with roomKey
+# stripped so they join as participants.
+def _strip_whereby_room_key(raw_url):
+    if not raw_url:
+        return ""
+    parts = urlsplit(raw_url.strip())
+    if not parts.scheme or not parts.netloc:
+        return raw_url.strip()
+    query = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True) if k != "roomKey"]
+    return urlunsplit(parts._replace(query=urlencode(query)))
+
+
+_configured_participant_url = os.environ.get("CLASS_CALL_URL", "").strip()
+_configured_host_url = os.environ.get("CLASS_CALL_HOST_URL", "").strip()
+CLASS_CALL_PARTICIPANT_URL = _strip_whereby_room_key(_configured_participant_url or _configured_host_url)
+CLASS_CALL_HOST_URL = _configured_host_url or CLASS_CALL_PARTICIPANT_URL
 
 # In-memory quiz-generation job store. Generation runs in a background thread so the
 # HTTP request that kicks it off returns instantly -- this avoids Render's platform
@@ -544,6 +557,11 @@ _PENDING_COLUMN_MIGRATIONS = [
     # These columns belonged only to that old system.
     "ALTER TABLE student_profiles DROP COLUMN whiteboard_room",
     "ALTER TABLE student_profiles DROP COLUMN whiteboard_key",
+    # A separate whiteboard rebuild (Excalidraw-backed "boards"/"board_collaborators", with
+    # its own RLS policies) was briefly merged in parallel and is also being replaced by the
+    # object-model whiteboard here -- drop its tables so they don't linger unused.
+    "DROP TABLE IF EXISTS board_collaborators",
+    "DROP TABLE IF EXISTS boards",
 ]
 
 
@@ -672,7 +690,7 @@ def register_routes(app):
             )
             return redirect(url_for("login"))
 
-        _log_in_local_user(result.user.id, email, name)
+        _log_in_local_user(result.user.id, email, name, result.session)
         return redirect(url_for("dashboard"))
 
     @app.route("/auth/login", methods=["POST"])
@@ -699,10 +717,10 @@ def register_routes(app):
             flash("Incorrect email or password.")
             return redirect(url_for("login"))
 
-        _log_in_local_user(result.user.id, email, None)
+        _log_in_local_user(result.user.id, email, None, result.session)
         return redirect(url_for("dashboard"))
 
-    def _log_in_local_user(supabase_uid, email, name):
+    def _log_in_local_user(supabase_uid, email, name, supabase_session):
         user = User.query.filter_by(supabase_uid=supabase_uid).first()
         if not user:
             admin_emails = {
@@ -723,6 +741,9 @@ def register_routes(app):
                 db.session.commit()
 
         session["user_id"] = user.id
+        if supabase_session:
+            session["sb_access_token"] = supabase_session.access_token
+            session["sb_refresh_token"] = supabase_session.refresh_token
 
     @app.route("/logout")
     def logout():
@@ -737,7 +758,7 @@ def register_routes(app):
             students = User.query.filter_by(is_admin=False).order_by(User.created_at).all()
             return render_template(
                 "admin_dashboard.html", user=user, students=students, active="dashboard",
-                class_call_url=CLASS_CALL_URL,
+                class_call_url=CLASS_CALL_HOST_URL,
             )
 
         profile = user.profile
@@ -747,7 +768,7 @@ def register_routes(app):
         return render_template(
             "student_dashboard.html", user=user, profile=profile,
             next_class=profile.next_class, active="dashboard",
-            class_call_url=CLASS_CALL_URL,
+            class_call_url=CLASS_CALL_PARTICIPANT_URL,
         )
 
     @app.route("/admin/assign-quiz")

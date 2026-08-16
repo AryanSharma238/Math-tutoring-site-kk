@@ -2051,10 +2051,10 @@ img.curriculum-viewer {
   position: fixed;
   bottom: 24px;
   right: 24px;
-  width: 300px;
-  height: 480px;
-  min-width: 240px;
-  min-height: 320px;
+  width: 180px;
+  height: 288px;
+  min-width: 180px;
+  min-height: 240px;
   max-width: 95vw;
   max-height: 90vh;
   background: var(--card);

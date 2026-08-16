@@ -55,7 +55,8 @@ full deletion later.
 | `SUPABASE_ANON_KEY` | Yes | Your Supabase project's `anon` public API key |
 | `ADMIN_EMAIL` | Yes | The email address that becomes admin on first sign-up. Everyone else who signs up becomes a student |
 | `GEMINI_API_KEY` | Yes, for quiz generation | Free key from [aistudio.google.com/apikey](https://aistudio.google.com/apikey) -- quiz generation uses Gemini exclusively now, automatically rotating through 4 free Gemini models (2.5 Flash, 3.5 Flash, 2.5 Flash Lite, 3.5 Flash Lite) as each one's free daily quota runs out |
-| `CLASS_CALL_URL` | No (class call just won't show up without it) | Your Daily.co room URL for the "Join/Start Class" video call feature -- see the Daily.co setup step below |
+| `CLASS_CALL_URL` | No (but needed for student join button) | Whereby participant room URL (no `roomKey`), e.g. `https://your-subdomain.whereby.com/your-room-name` |
+| `CLASS_CALL_HOST_URL` | No (recommended for admin host controls) | Full Whereby host link (includes `?roomKey=...`) used on the admin dashboard so the teacher gets host permissions |
 | `SUPABASE_SERVICE_ROLE_KEY` | No, but recommended if you use the whiteboard's image upload | Lets the server upload to Supabase Storage on a user's behalf. Without it, image uploads fall back to the anon key, which only works if your Storage bucket's policy explicitly allows anonymous inserts -- see the Whiteboard section below |
 | `PYTHON_VERSION` | Yes, on Render | Set to `3.12.7` -- avoids a build failure where `psycopg2-binary`'s prebuilt wheel doesn't yet support Render's newer default Python |
 
@@ -123,7 +124,9 @@ full deletion later.
    - `SUPABASE_ANON_KEY` -- from step 4
    - `ADMIN_EMAIL` -- the email you (the teacher) will sign up with
    - `GEMINI_API_KEY` -- your free key from [aistudio.google.com/apikey](https://aistudio.google.com/apikey) (sign in with a Google account, click "Create API Key", no card needed)
-   - `CLASS_CALL_URL` -- (optional) sign up free at [dashboard.daily.co](https://dashboard.daily.co) (no card needed), create a room (Rooms -> Create room), turn on "Enable knocking" under that room's settings for a waiting room, then set this to the room's URL (looks like `https://your-subdomain.daily.co/your-room-name`). Without this set, the "Join/Start Class" button just won't appear.
+   - `CLASS_CALL_URL` -- (optional but recommended) set this to your Whereby participant room URL (`https://your-subdomain.whereby.com/your-room-name`) so students join with participant permissions
+   - `CLASS_CALL_HOST_URL` -- (optional but recommended) set this to the Whereby host link (includes `?roomKey=...`) so admins open the same room with host permissions
+   - If you only set `CLASS_CALL_HOST_URL`, the app auto-derives the student URL by stripping `roomKey` for participant access.
 
 8. **Deploy.** Render will build and start the app. The first request creates
    all database tables automatically (`db.create_all()` runs at startup) --
