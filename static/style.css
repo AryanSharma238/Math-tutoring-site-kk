@@ -1199,12 +1199,15 @@ img.curriculum-viewer {
   flex: 1 1 auto;
   position: relative;
   overflow: hidden;
+  touch-action: none;
+  user-select: none;
   background:
     linear-gradient(to right, rgba(0, 0, 0, 0.05) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(0, 0, 0, 0.05) 1px, transparent 1px),
     #ffffff;
   background-size: 24px 24px;
 }
+.wb-canvas-wrap canvas { touch-action: none; }
 
 .wb-pagebar {
   display: flex;
