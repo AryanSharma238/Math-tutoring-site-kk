@@ -108,11 +108,14 @@ class StudentProfile(db.Model):
 
     @property
     def latest_assigned_quiz(self):
-        return self.quizzes[0] if self.quizzes else None
+        # Quizzes a student generates for themselves ("My Quizzes") are a separate practice
+        # feature and should never show up as "homework" -- only teacher-assigned ones count.
+        assigned = [q for q in self.quizzes if not q.is_student_created]
+        return assigned[0] if assigned else None
 
     @property
     def latest_completed_quiz(self):
-        completed = [q for q in self.quizzes if q.completed_at]
+        completed = [q for q in self.quizzes if q.completed_at and not q.is_student_created]
         if not completed:
             return None
         return max(completed, key=lambda q: q.completed_at)

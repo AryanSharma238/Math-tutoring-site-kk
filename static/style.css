@@ -684,14 +684,90 @@ img.curriculum-viewer {
   margin-bottom: 1rem;
 }
 
+/* Fullscreen single-question quiz-taking layout -- deliberately does not include the
+   sidebar/dashboard chrome so a student stays focused on one question at a time. */
+.quiz-take-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 1.25rem 1.5rem 2rem;
+}
+
+.quiz-take-topbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1.25rem;
+}
+
+.quiz-take-back {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+.quiz-take-back:hover { color: var(--text); }
+
+.quiz-take-title {
+  font-size: 1.1rem;
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.quiz-nav-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.quiz-nav-dot {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.quiz-nav-dot.current {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.25);
+}
+.quiz-nav-dot.done {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #fff;
+}
+
+.quiz-take-body { flex: 1 1 auto; }
+
+.quiz-take-controls {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-top: 1rem;
+}
+
+.quiz-question-text { margin: 0 0 0.5rem; }
+
 .quiz-graph {
   position: relative;
-  height: 260px;
+  height: 300px;
   margin-top: 0.85rem;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 0.5rem;
+  padding: 0.25rem;
 }
 
 .quiz-graph-canvas {

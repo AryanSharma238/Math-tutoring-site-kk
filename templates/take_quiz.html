@@ -1,27 +1,31 @@
 {% extends "base.html" %}
 {% block title %}{{ quiz.title }}{% endblock %}
 {% block body %}
-<div class="portal">
-  {% include "_student_sidebar.html" %}
-  <main class="content">
-    <a href="{{ url_for('quizzes') }}" class="back-link">&larr; Back to quizzes</a>
-    <h1>{{ quiz.title }}</h1>
-    {% if quiz.completed_at %}<p class="muted small">Completed {{ quiz.completed_at.strftime('%b %d, %Y') }}</p>{% endif %}
+<div class="quiz-take-shell">
+  <div class="quiz-take-topbar">
+    <a href="{{ url_for('quizzes') }}" class="quiz-take-back" title="Exit quiz">&larr; Exit</a>
+    <h1 class="quiz-take-title">{{ quiz.title }}</h1>
+    <div class="quiz-nav-dots" id="quizNavDots"></div>
+  </div>
 
-    <section id="quizContainer"></section>
-  </main>
+  <div class="quiz-take-body" id="quizContainer"></div>
+
+  <div class="quiz-take-controls">
+    <button type="button" id="prevBtn" class="secondary-btn">Previous</button>
+    <button type="button" id="nextBtn">Next</button>
+  </div>
 </div>
 
 <div class="quiz-tools-rail">
-  <button type="button" id="openCalcBtn" class="tool-fab" title="Calculator">🧮</button>
-  <button type="button" id="openDrawBtn" class="tool-fab" title="Draw">✏️</button>
+  <button type="button" id="openCalcBtn" class="tool-fab" title="Calculator">Calculator</button>
+  <button type="button" id="openDrawBtn" class="tool-fab" title="Draw">Draw</button>
 </div>
 
 <div class="calc-window" id="calcWindow" hidden>
   <div class="calc-header" id="calcHeader">
     <div class="calc-tabs">
-      <button type="button" class="calc-tab active" data-tab="graphing">Desmos Graphing</button>
-      <button type="button" class="calc-tab" data-tab="scientific">Scientific (TI-84 style)</button>
+      <button type="button" class="calc-tab active" data-tab="graphing">Desmos</button>
+      <button type="button" class="calc-tab" data-tab="scientific">Scientific Calculator</button>
     </div>
     <button type="button" class="calc-close" id="closeCalcBtn">&times;</button>
   </div>
@@ -34,10 +38,10 @@
 
 <div class="draw-overlay" id="drawOverlay" hidden>
   <div class="draw-toolbar">
-    <button type="button" class="draw-tool active" data-tool="pen" title="Pen">✒️ Pen</button>
-    <button type="button" class="draw-tool" data-tool="highlighter" title="Highlighter">🖍️ Highlighter</button>
-    <button type="button" class="draw-tool" data-tool="marker" title="Marker">🖊️ Marker</button>
-    <button type="button" class="draw-tool" data-tool="eraser" title="Eraser">🧹 Eraser</button>
+    <button type="button" class="draw-tool active" data-tool="pen" title="Pen">Pen</button>
+    <button type="button" class="draw-tool" data-tool="highlighter" title="Highlighter">Highlighter</button>
+    <button type="button" class="draw-tool" data-tool="marker" title="Marker">Marker</button>
+    <button type="button" class="draw-tool" data-tool="eraser" title="Eraser">Eraser</button>
     <span class="draw-colors">
       <button type="button" class="draw-color active" data-color="#1a1a2e" style="background:#1a1a2e"></button>
       <button type="button" class="draw-color" data-color="#dc2626" style="background:#dc2626"></button>
@@ -56,6 +60,14 @@
   const savedAnswers = {{ saved_answers | tojson }};
   const quizId = {{ quiz.id }};
   const container = document.getElementById("quizContainer");
+  const navDots = document.getElementById("quizNavDots");
+  const prevBtn = document.getElementById("prevBtn");
+  const nextBtn = document.getElementById("nextBtn");
+
+  // Free navigation between any question at any time -- start on the first one that isn't
+  // already correctly answered, or question 1 if everything's done.
+  let currentIndex = questions.findIndex((_, pi) => !(savedAnswers[String(pi)] || {}).submitted);
+  if (currentIndex === -1) currentIndex = 0;
 
   function escapeHtml(str) {
     const div = document.createElement("div");
@@ -63,78 +75,71 @@
     return div.innerHTML;
   }
 
-  function render() {
-    container.innerHTML = questions
-      .map((p, pi) => {
-        const saved = savedAnswers[String(pi)];
-        const choicesHtml = (p.choices || [])
-          .map((c, ci) => `
-            <button type="button" class="choice-btn" data-problem="${pi}" data-choice="${ci}">
-              <span class="choice-label">${escapeHtml(c.label || "")}</span>
-              ${escapeHtml(c.text || "")}
-            </button>
-          `)
-          .join("");
+  function isCorrect(pi) {
+    return !!(savedAnswers[String(pi)] || {}).submitted;
+  }
+
+  function renderNavDots() {
+    navDots.innerHTML = questions
+      .map((_, pi) => {
+        const cls = ["quiz-nav-dot"];
+        if (pi === currentIndex) cls.push("current");
+        if (isCorrect(pi)) cls.push("done");
+        return `<button type="button" class="${cls.join(" ")}" data-goto="${pi}">${pi + 1}</button>`;
+      })
+      .join("");
+  }
+
+  function renderQuestion() {
+    const pi = currentIndex;
+    const p = questions[pi];
+    const saved = savedAnswers[String(pi)] || {};
+    const locked = !!saved.submitted; // locked once answered correctly; wrong answers can retry
+
+    const choicesHtml = (p.choices || [])
+      .map((c, ci) => {
+        const cls = ["choice-btn"];
+        if (locked) {
+          if (c.correct) cls.push("correct");
+        } else if (saved.choice === ci) {
+          cls.push("selected");
+        }
         return `
-          <div class="quiz-question" data-problem="${pi}" data-submitted="${saved && saved.submitted ? "true" : "false"}">
-            <span class="num">${pi + 1}.</span> ${escapeHtml(p.question || "")}
-            ${p.graph ? `<div class="quiz-graph" id="graph-${pi}"></div>` : ""}
-            <div class="quiz-choices">${choicesHtml}</div>
-            <button type="button" class="submit-answer-btn" data-problem="${pi}" disabled>Submit answer</button>
-            <p class="quiz-feedback" id="feedback-${pi}"></p>
-            <button type="button" class="steps-toggle" data-problem="${pi}">Show step-by-step solution</button>
-            <div class="steps" id="steps-${pi}" hidden>${escapeHtml(p.solution || "")}</div>
-          </div>
+          <button type="button" class="${cls.join(" ")}" data-choice="${ci}" ${locked ? "disabled" : ""}>
+            <span class="choice-label">${escapeHtml(c.label || "")}</span>
+            ${escapeHtml(c.text || "")}
+          </button>
         `;
       })
       .join("");
 
-    // Restore saved state (selection and/or submission) for each question.
-    questions.forEach((p, pi) => {
-      if (p.graph) renderGraphIn(document.getElementById(`graph-${pi}`), p.graph);
-      const saved = savedAnswers[String(pi)];
-      if (!saved) return;
-      const qEl = container.querySelector(`.quiz-question[data-problem="${pi}"]`);
-      const choiceBtn = qEl.querySelector(`.choice-btn[data-choice="${saved.choice}"]`);
-      if (choiceBtn) choiceBtn.classList.add("selected");
-      const submitBtn = qEl.querySelector(".submit-answer-btn");
-      if (choiceBtn) submitBtn.disabled = false;
-      if (saved.submitted) {
-        gradeQuestion(pi, saved.choice);
-      }
-    });
+    container.innerHTML = `
+      <div class="quiz-question" data-submitted="${locked ? "true" : "false"}">
+        <p class="quiz-question-text"><span class="num">${pi + 1}.</span> ${escapeHtml(p.question || "")}</p>
+        ${p.graph ? `<div class="quiz-graph" id="graph-current"></div>` : ""}
+        <div class="quiz-choices">${choicesHtml}</div>
+        <button type="button" class="submit-answer-btn" id="submitAnswerBtn" ${saved.choice === undefined || locked ? "disabled" : ""} ${locked ? "hidden" : ""}>
+          ${saved.wrongAttempt ? "Try again" : "Submit answer"}
+        </button>
+        <p class="quiz-feedback ${locked ? "correct-text" : saved.wrongAttempt ? "incorrect-text" : ""}" id="feedback">
+          ${locked ? "Correct!" : saved.wrongAttempt ? (p.choices[saved.choice] && p.choices[saved.choice].explanation) || "Not quite -- try again." : ""}
+        </p>
+        <button type="button" class="steps-toggle" id="stepsToggle">Show step-by-step solution</button>
+        <div class="steps" id="stepsBox" hidden>${escapeHtml(p.solution || "")}</div>
+      </div>
+    `;
 
+    if (p.graph) renderGraphIn(document.getElementById("graph-current"), p.graph);
     renderMathIn(container);
-  }
 
-  function gradeQuestion(pi, selectedChoice) {
-    const problem = questions[pi];
-    const qEl = container.querySelector(`.quiz-question[data-problem="${pi}"]`);
-    const feedbackEl = document.getElementById(`feedback-${pi}`);
-    qEl.dataset.submitted = "true";
-
-    qEl.querySelectorAll(".choice-btn").forEach((btn) => {
-      const ci = parseInt(btn.dataset.choice, 10);
-      const c = problem.choices[ci];
-      if (c.correct) btn.classList.add("correct");
-      if (ci === selectedChoice && !c.correct) btn.classList.add("incorrect");
-      btn.disabled = true;
-    });
-    qEl.querySelector(".submit-answer-btn").hidden = true;
-
-    const chosen = problem.choices[selectedChoice];
-    if (chosen && chosen.correct) {
-      feedbackEl.textContent = "Correct!";
-      feedbackEl.className = "quiz-feedback correct-text";
-    } else {
-      feedbackEl.textContent = (chosen && chosen.explanation) || "That's not right.";
-      feedbackEl.className = "quiz-feedback incorrect-text";
-    }
-    renderMathIn(feedbackEl);
+    prevBtn.disabled = pi === 0;
+    nextBtn.textContent = pi === questions.length - 1 ? "Finish" : "Next";
+    renderNavDots();
   }
 
   function saveAnswer(pi, choiceIndex, submitted) {
-    savedAnswers[String(pi)] = { choice: choiceIndex, submitted };
+    const prev = savedAnswers[String(pi)] || {};
+    savedAnswers[String(pi)] = { ...prev, choice: choiceIndex, submitted, wrongAttempt: !submitted };
     fetch(`/quizzes/${quizId}/answer`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -143,43 +148,67 @@
   }
 
   container.addEventListener("click", (e) => {
-    const stepsBtn = e.target.closest(".steps-toggle");
+    const stepsBtn = e.target.closest("#stepsToggle");
     if (stepsBtn) {
-      const pi = stepsBtn.dataset.problem;
-      const stepsEl = document.getElementById(`steps-${pi}`);
-      stepsEl.hidden = !stepsEl.hidden;
-      stepsBtn.textContent = stepsEl.hidden ? "Show step-by-step solution" : "Hide step-by-step solution";
+      const box = document.getElementById("stepsBox");
+      box.hidden = !box.hidden;
+      stepsBtn.textContent = box.hidden ? "Show step-by-step solution" : "Hide step-by-step solution";
       return;
     }
 
     const choiceBtn = e.target.closest(".choice-btn");
-    if (choiceBtn) {
-      const pi = parseInt(choiceBtn.dataset.problem, 10);
-      const qEl = container.querySelector(`.quiz-question[data-problem="${pi}"]`);
+    if (choiceBtn && !choiceBtn.disabled) {
+      const qEl = container.querySelector(".quiz-question");
       if (qEl.dataset.submitted === "true") return;
 
-      qEl.querySelectorAll(".choice-btn").forEach((b) => b.classList.remove("selected"));
+      container.querySelectorAll(".choice-btn").forEach((b) => b.classList.remove("selected"));
       choiceBtn.classList.add("selected");
-      qEl.querySelector(".submit-answer-btn").disabled = false;
+      const submitBtn = document.getElementById("submitAnswerBtn");
+      submitBtn.disabled = false;
+      submitBtn.hidden = false;
 
       const ci = parseInt(choiceBtn.dataset.choice, 10);
-      saveAnswer(pi, ci, false);
+      savedAnswers[String(currentIndex)] = { choice: ci, submitted: false };
       return;
     }
 
-    const submitBtn = e.target.closest(".submit-answer-btn");
+    const submitBtn = e.target.closest("#submitAnswerBtn");
     if (submitBtn) {
-      const pi = parseInt(submitBtn.dataset.problem, 10);
-      const qEl = container.querySelector(`.quiz-question[data-problem="${pi}"]`);
-      const selected = qEl.querySelector(".choice-btn.selected");
+      const selected = container.querySelector(".choice-btn.selected");
       if (!selected) return;
       const ci = parseInt(selected.dataset.choice, 10);
-      gradeQuestion(pi, ci);
-      saveAnswer(pi, ci, true);
+      const correct = !!questions[currentIndex].choices[ci].correct;
+      saveAnswer(currentIndex, ci, correct);
+      // Retry-until-correct: a wrong answer just re-renders with feedback and stays unlocked
+      // so the student can pick again; a correct one locks the question.
+      renderQuestion();
     }
   });
 
-  render();
+  navDots.addEventListener("click", (e) => {
+    const dot = e.target.closest(".quiz-nav-dot");
+    if (!dot) return;
+    currentIndex = parseInt(dot.dataset.goto, 10);
+    renderQuestion();
+  });
+
+  prevBtn.addEventListener("click", () => {
+    if (currentIndex > 0) {
+      currentIndex -= 1;
+      renderQuestion();
+    }
+  });
+
+  nextBtn.addEventListener("click", () => {
+    if (currentIndex < questions.length - 1) {
+      currentIndex += 1;
+      renderQuestion();
+    } else {
+      window.location.href = "{{ url_for('quizzes') }}";
+    }
+  });
+
+  renderQuestion();
 
   // ---------- Calculator window (movable + resizable, Desmos graphing/scientific tabs) ----------
   (function () {

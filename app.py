@@ -77,7 +77,7 @@ DEFAULT_MODEL = FREE_MODELS[0][0]
 
 QUIZ_SYSTEM_PROMPT = """You are a math problem generator. Given a topic/prompt, generate exactly {count} distinct multiple-choice math problems matching it, plus a short descriptive title for the quiz as a whole.
 
-Each question must have exactly 4 answer choices, exactly one of which is correct.
+Each question must have exactly 4 answer choices, exactly one of which is correct. All 4 choices must be genuinely distinct values from each other -- never repeat the same number/expression across multiple choices, even by accident (e.g. simplifying to the same reduced form through different arithmetic slips). Each wrong choice should come from a different plausible mistake, not the same result reached two different ways.
 Each question must include a step-by-step solution.
 Each incorrect choice must include a brief explanation of the specific mistake or misconception that leads to it.
 Verify all numbers and answer choices are mathematically correct and consistent before outputting.
@@ -300,6 +300,16 @@ def _validate_quiz_payload(parsed, topic):
         correct_count = sum(1 for c in choices if c.get("correct"))
         if correct_count != 1:
             raise ValueError(f"Question {i} doesn't have exactly one correct answer. Please try again.")
+
+        # Catches the model repeating the same value across multiple choices (e.g. four "1"s
+        # with only one marked correct) -- technically satisfies the schema but is a broken
+        # question, since a student can't distinguish the choices.
+        normalized_texts = [
+            re.sub(r"\s+", "", (c.get("text") or "")).lower() for c in choices
+        ]
+        if len(set(normalized_texts)) != len(normalized_texts):
+            raise ValueError(f"Question {i} has duplicate answer choices. Please try again.")
+
         _sanitize_graph_field(q)
 
     title = (parsed.get("title") or "").strip() or (topic[:100] if topic else "Untitled quiz")
@@ -337,7 +347,11 @@ def _generate_quiz_attempt(topic, model_value, count, strict_reminder=False):
         system_prompt += (
             "\n\nIMPORTANT: your previous attempt did not follow the required JSON shape exactly. "
             "Double check before responding: every question must have EXACTLY one choice with "
-            "\"correct\": true and all others \"correct\": false -- not zero, not two or more."
+            "\"correct\": true and all others \"correct\": false -- not zero, not two or more. "
+            "Every choice's \"text\" must also be genuinely distinct from every other choice on "
+            "that question -- do not repeat the same value (e.g. multiple choices that are all "
+            "just \"1\") even if only one of them is marked correct; each wrong choice should "
+            "represent a different plausible mistake, not a duplicate of another option."
         )
 
     payload = {

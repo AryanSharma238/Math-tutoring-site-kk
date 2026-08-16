@@ -172,28 +172,29 @@ function renderGraphIn(container, graph) {
       maintainAspectRatio: false,
       animation: false,
       resizeDelay: 0,
-      layout: { padding: { top: 8, right: 12, bottom: 4, left: 4 } },
+      layout: { padding: { top: 10, right: 14, bottom: 10, left: 10 } },
       plugins: { legend: { display: false } },
+      // Desmos-style: axes cross through the origin instead of being pinned to the plot's
+      // edges, no axis-name labels (just the numbers), light gridlines with the zero lines
+      // emphasized -- reads as a clean coordinate plane rather than a boxed chart.
       scales: {
         x: {
           type: "linear",
-          position: "bottom",
+          position: "center",
           grid: {
             color: (ctx) => (ctx.tick.value === 0 ? zeroLineColor : gridColor),
             lineWidth: (ctx) => (ctx.tick.value === 0 ? 1.5 : 1),
           },
-          ticks: { color: tickColor, font: { size: 11 } },
-          title: { display: true, text: "x", color: tickColor, font: { size: 12, weight: "600" } },
+          ticks: { color: tickColor, font: { size: 11 }, padding: 4 },
         },
         y: {
           type: "linear",
-          position: "left",
+          position: "center",
           grid: {
             color: (ctx) => (ctx.tick.value === 0 ? zeroLineColor : gridColor),
             lineWidth: (ctx) => (ctx.tick.value === 0 ? 1.5 : 1),
           },
-          ticks: { color: tickColor, font: { size: 11 } },
-          title: { display: true, text: "y", color: tickColor, font: { size: 12, weight: "600" } },
+          ticks: { color: tickColor, font: { size: 11 }, padding: 4 },
         },
       },
     },
