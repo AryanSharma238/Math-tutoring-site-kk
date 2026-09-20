@@ -89,28 +89,6 @@ def get_supabase():
     return _supabase_client
 
 
-_supabase_storage_client = None
-
-
-def get_supabase_storage():
-    """A separate client for server-side Storage writes (whiteboard image uploads). Prefers
-    SUPABASE_SERVICE_ROLE_KEY -- the anon key is normally blocked from writing to a Storage
-    bucket by that bucket's own access policy, and the service role key is what lets our
-    backend (which already authenticates the user itself via the app's own login, not
-    Supabase's) upload on the user's behalf. Falls back to the anon client if no service role
-    key is set, which only works if the bucket's policy explicitly allows anon inserts."""
-    global _supabase_storage_client
-    if _supabase_storage_client is None:
-        if create_client is None:
-            raise SupabaseNotConfigured("supabase package is not installed on the server.")
-        url = os.environ.get("SUPABASE_URL")
-        service_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
-        if url and service_key:
-            _supabase_storage_client = create_client(url, service_key)
-        else:
-            _supabase_storage_client = get_supabase()
-    return _supabase_storage_client
-
 COMMON_TIMEZONES = [
     "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles",
     "America/Anchorage", "Pacific/Honolulu", "America/Sao_Paulo",
@@ -559,16 +537,17 @@ _PENDING_COLUMN_MIGRATIONS = [
     # app's new profile_id-only inserts) don't hit a NOT NULL violation.
     "ALTER TABLE site_embeds ADD COLUMN profile_id INTEGER",
     "ALTER TABLE site_embeds ALTER COLUMN slot DROP NOT NULL",
-    # The old link-based whiteboard (one row per student, pointing at an external Excalidraw
-    # room) is gone -- replaced by the custom object-model whiteboard in whiteboard_routes.py.
-    # These columns belonged only to that old system.
+    # Whiteboard feature removed entirely -- drop its tables (children first) so a deleted
+    # student's profile row is never blocked by an orphaned foreign key.
     "ALTER TABLE student_profiles DROP COLUMN whiteboard_room",
     "ALTER TABLE student_profiles DROP COLUMN whiteboard_key",
-    # A separate whiteboard rebuild (Excalidraw-backed "boards"/"board_collaborators", with
-    # its own RLS policies) was briefly merged in parallel and is also being replaced by the
-    # object-model whiteboard here -- drop its tables so they don't linger unused.
     "DROP TABLE IF EXISTS board_collaborators",
     "DROP TABLE IF EXISTS boards",
+    "DROP TABLE IF EXISTS whiteboard_deletions",
+    "DROP TABLE IF EXISTS whiteboard_images",
+    "DROP TABLE IF EXISTS whiteboard_elements",
+    "DROP TABLE IF EXISTS whiteboard_pages",
+    "DROP TABLE IF EXISTS whiteboard_workspaces",
     # A student can now have more than one weekly class slot -- these single columns are
     # replaced by the class_schedule_slots table.
     "ALTER TABLE student_profiles DROP COLUMN class_weekday",
@@ -590,28 +569,6 @@ def _run_pending_migrations():
             pass  # column already exists (or table doesn't exist yet) -- safe to ignore
 
 
-def _drop_legacy_whiteboard_pages_table():
-    """The OLD whiteboard system also had a table literally named "whiteboard_pages", but with
-    completely different columns (profile_id, title, src_url) than the new one (workspace_id,
-    name). db.create_all() only creates tables that don't exist yet, so if the old table is
-    still sitting there from a previous deploy, it would silently block the new schema from
-    ever being created -- drop it first (only if it's still on the OLD schema, detected by the
-    presence of "src_url", so this never touches an already-migrated table) so create_all()
-    below creates it fresh with the right columns. All rows in the old table were just links to
-    external Excalidraw rooms, not real content, so there's nothing worth preserving."""
-    from sqlalchemy import inspect, text
-    try:
-        inspector = inspect(db.engine)
-        if "whiteboard_pages" not in inspector.get_table_names():
-            return
-        columns = {c["name"] for c in inspector.get_columns("whiteboard_pages")}
-        if "src_url" in columns:
-            with db.engine.connect() as conn:
-                conn.execute(text("DROP TABLE whiteboard_pages"))
-                conn.commit()
-    except Exception:
-        pass
-
 
 def create_app():
     app = Flask(__name__)
@@ -628,7 +585,6 @@ def create_app():
     db.init_app(app)
 
     with app.app_context():
-        _drop_legacy_whiteboard_pages_table()
         db.create_all()
         _run_pending_migrations()
 
@@ -788,9 +744,7 @@ def register_routes(app):
             class_call_url=CLASS_CALL_PARTICIPANT_URL,
         )
 
-    # Assigning a quiz and opening a whiteboard both moved onto each student's own page (as
-    # tabs), so a student no longer needs to be picked from a separate page first -- these
-    # just redirect there for any old links/bookmarks.
+    # Old links/bookmarks: assigning a quiz now lives on each student's own page.
     @app.route("/admin/assign-quiz")
     @login_required
     @admin_required

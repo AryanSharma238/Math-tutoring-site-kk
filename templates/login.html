@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Math Tutoring — Sign In{% endblock %}
+{% block title %}Sign in · E Math Metrics{% endblock %}
 {% block body %}
 <main class="landing">
   <div class="landing-card">
-    <h1>Math Tutoring Portal</h1>
+    <h1>E Math Metrics</h1>
     <p class="subtitle" id="modeSubtitle">Sign in to your account.</p>
 
     <form method="POST" action="{{ url_for('auth_login') }}" class="landing-form" id="loginForm" {{ "hidden" if request.args.get('mode') == 'signup' else "" }}>
