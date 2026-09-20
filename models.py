@@ -58,7 +58,6 @@ class StudentProfile(db.Model):
         "HomeworkFile", backref="profile", cascade="all, delete-orphan",
         order_by="HomeworkFile.uploaded_at.desc()",
     )
-    questions_answered = db.Column(db.Integer, default=0, nullable=False)
 
     @property
     def next_class(self):

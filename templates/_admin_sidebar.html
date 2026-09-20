@@ -36,12 +36,10 @@
 </div>
 
 <script>
-  document.addEventListener("DOMContentLoaded", () => {
-    const startClassBtn = document.getElementById("startClassBtn");
-    if (startClassBtn) {
-      startClassBtn.addEventListener("click", () => {
-        openClassCall(startClassBtn.dataset.url, startClassBtn.dataset.name);
-      });
-    }
-  });
+  const startClassBtn = document.getElementById("startClassBtn");
+  if (startClassBtn) {
+    startClassBtn.addEventListener("click", () => {
+      openClassCall(startClassBtn.dataset.url, startClassBtn.dataset.name);
+    });
+  }
 </script>

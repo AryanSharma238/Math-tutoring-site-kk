@@ -276,7 +276,7 @@
       statusEl.textContent = `Sent "${data.title}" to the student.`;
       previewWrap.hidden = true;
       pendingQuiz = null;
-      setTimeout(() => window.location.reload(), 600);
+      setTimeout(() => softReload(), 600);
     } catch (err) {
       statusEl.textContent = `Error: ${err.message}`;
     } finally {

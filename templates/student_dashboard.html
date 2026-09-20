@@ -21,8 +21,7 @@
           <p class="muted small">{{ profile.course_name or "No course set" }}</p>
           {% if class_call_url %}
             <button type="button" class="join-class-btn" id="joinClassBtn"
-              data-url="{{ class_call_url }}" data-name="{{ user.name or user.email }}"
-              onclick="window.open(this.dataset.url, 'class_call', 'width=1200,height=800'); return false;">
+              data-url="{{ class_call_url }}" data-name="{{ user.name or user.email }}">
               Join Call
             </button>
           {% endif %}
@@ -200,11 +199,14 @@
 
   const drawer = document.getElementById("studentWhiteboard");
   const pullTab = document.getElementById("whiteboardPullTab");
+  const wbEmbed = drawer.querySelector(".wb-embed");
+  // Mount the heavy canvas up front while idle so opening only animates a transform.
+  setTimeout(() => WB.mount(wbEmbed), 400);
   function setWhiteboardOpen(open) {
     drawer.classList.toggle("open", open);
     drawer.setAttribute("aria-hidden", String(!open));
     pullTab.setAttribute("aria-expanded", String(open));
-    if (open) requestAnimationFrame(() => WB.mount(drawer.querySelector(".wb-embed")));
+    if (open) WB.mount(wbEmbed);
   }
   pullTab.addEventListener("click", () => setWhiteboardOpen(!drawer.classList.contains("open")));
   document.getElementById("closeWhiteboard").addEventListener("click", () => setWhiteboardOpen(false));
@@ -266,7 +268,7 @@
 
       const result = await pollOwnJob(startData.job_id);
       ownStatus.textContent = `Created "${result.title}". Taking you to Assigned...`;
-      setTimeout(() => window.location.reload(), 800);
+      setTimeout(() => softReload(), 800);
     } catch (err) {
       ownStatus.textContent = err.message;
     } finally {

@@ -163,8 +163,9 @@ button {
   flex-shrink: 0;
   background: var(--card);
   border-right: 1px solid var(--border);
-  transition: width 0.2s ease;
+  transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
+  overflow: hidden;
 }
 
 .sidebar.collapsed {
@@ -486,7 +487,7 @@ button {
 .homework-pdf-viewer { width: 100%; flex: 1 1 auto; min-height: calc(100vh - 245px); border: 1px solid var(--border); border-radius: 16px; background: #fff; }
 .whiteboard-pull-tab { position: fixed; right: 0; top: 42%; z-index: 850; border-radius: 10px 0 0 10px; padding: 0.8rem 0.55rem; writing-mode: vertical-rl; background: #4f46e5; color: #fff; box-shadow: 0 8px 25px rgba(79,70,229,.3); }
 .whiteboard-pull-tab span { font-size: 1.2rem; margin-top: .4rem; transform: rotate(180deg); display: inline-block; }
-.student-whiteboard-drawer { position: fixed; z-index: 860; top: 0; right: 0; bottom: 0; width: min(100vw, 1180px); padding: 0.75rem; background: var(--bg); box-shadow: -18px 0 45px rgba(0,0,0,.22); transform: translateX(100%); transition: transform .28s cubic-bezier(.2,.8,.2,1); }
+.student-whiteboard-drawer { position: fixed; z-index: 860; top: 0; right: 0; bottom: 0; width: min(100vw, 1180px); padding: 0.75rem; background: var(--bg); box-shadow: -18px 0 45px rgba(0,0,0,.22); transform: translateX(100%); transition: transform .3s cubic-bezier(.22,1,.36,1); will-change: transform; contain: layout paint; }
 .student-whiteboard-drawer.open { transform: translateX(0); }
 .student-whiteboard-drawer .wb-embed { height: calc(100% - 42px); min-height: 0; }
 .student-whiteboard-drawer-head { height: 34px; display: flex; justify-content: space-between; align-items: center; }

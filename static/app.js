@@ -53,7 +53,8 @@ function _showClassCallWidget(roomUrl, displayName) {
 // ---------- Floating call widget: restore-on-navigate, drag, close ----------
 (function () {
   const win = document.getElementById("callWindow");
-  if (!win) return; // base.html didn't render it (shouldn't happen, but stay defensive)
+  if (!win || window.__callWidgetInit) return; // widget persists across soft navigations
+  window.__callWidgetInit = true;
 
   const header = document.getElementById("callHeader");
   const closeBtn = document.getElementById("closeCallBtn");

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{% block title %}Math Tutoring{% endblock %}</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=dashboard-layout-5">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=dashboard-layout-6">
 <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/m2-logo.png') }}">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
@@ -42,6 +42,7 @@
   <div class="call-resize-handle" id="callResizeHandle"></div>
 </div>
 
+<script src="{{ url_for('static', filename='nav.js') }}"></script>
 <script src="{{ url_for('static', filename='app.js') }}"></script>
 {% block scripts %}{% endblock %}
 </body>
