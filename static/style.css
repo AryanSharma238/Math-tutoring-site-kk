@@ -485,14 +485,6 @@ button {
 .homework-exit-btn { display: inline-block; padding: .65rem 1rem; border: 1px solid var(--border); border-radius: 8px; color: var(--text); text-decoration: none; font-weight: 700; }
 .homework-exit-btn:hover { border-color: #3730a3; color: #3730a3; }
 .homework-pdf-viewer { width: 100%; flex: 1 1 auto; min-height: calc(100vh - 245px); border: 1px solid var(--border); border-radius: 16px; background: #fff; }
-.whiteboard-pull-tab { position: fixed; right: 0; top: 42%; z-index: 850; border-radius: 10px 0 0 10px; padding: 0.8rem 0.55rem; writing-mode: vertical-rl; background: #4f46e5; color: #fff; box-shadow: 0 8px 25px rgba(79,70,229,.3); }
-.whiteboard-pull-tab span { font-size: 1.2rem; margin-top: .4rem; transform: rotate(180deg); display: inline-block; }
-.student-whiteboard-drawer { position: fixed; z-index: 860; top: 0; right: 0; bottom: 0; width: min(100vw, 1180px); padding: 0.75rem; background: var(--bg); box-shadow: -18px 0 45px rgba(0,0,0,.22); transform: translateX(100%); transition: transform .3s cubic-bezier(.22,1,.36,1); will-change: transform; contain: layout paint; }
-.student-whiteboard-drawer.open { transform: translateX(0); }
-.student-whiteboard-drawer .wb-embed { height: calc(100% - 42px); min-height: 0; }
-.student-whiteboard-drawer-head { height: 34px; display: flex; justify-content: space-between; align-items: center; }
-.student-whiteboard-drawer-head button { padding: .15rem .55rem; }
-@media (max-width: 650px) { .student-whiteboard-drawer { width: 100vw; padding: .4rem; } .whiteboard-pull-tab { top: 35%; } }
 
 .join-class-btn-compact {
   padding: 0.45rem 0.9rem;

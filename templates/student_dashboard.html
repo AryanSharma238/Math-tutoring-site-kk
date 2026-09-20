@@ -130,15 +130,6 @@
   </main>
 </div>
 
-<button type="button" class="whiteboard-pull-tab" id="whiteboardPullTab" aria-controls="studentWhiteboard" aria-expanded="false">Whiteboard <span>←</span></button>
-<aside class="student-whiteboard-drawer" id="studentWhiteboard" aria-hidden="true">
-  <div class="student-whiteboard-drawer-head"><strong>Whiteboard</strong><button type="button" id="closeWhiteboard" aria-label="Close whiteboard">←</button></div>
-  {% include "_whiteboard_editor.html" %}
-</aside>
-
-<script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="{{ url_for('static', filename='whiteboard.js') }}"></script>
 {% endblock %}
 {% block scripts %}
 <script>
@@ -196,20 +187,6 @@
       panels.forEach((p) => { p.hidden = p.dataset.panel !== tab.dataset.tab; });
     });
   });
-
-  const drawer = document.getElementById("studentWhiteboard");
-  const pullTab = document.getElementById("whiteboardPullTab");
-  const wbEmbed = drawer.querySelector(".wb-embed");
-  // Mount the heavy canvas up front while idle so opening only animates a transform.
-  setTimeout(() => WB.mount(wbEmbed), 400);
-  function setWhiteboardOpen(open) {
-    drawer.classList.toggle("open", open);
-    drawer.setAttribute("aria-hidden", String(!open));
-    pullTab.setAttribute("aria-expanded", String(open));
-    if (open) WB.mount(wbEmbed);
-  }
-  pullTab.addEventListener("click", () => setWhiteboardOpen(!drawer.classList.contains("open")));
-  document.getElementById("closeWhiteboard").addEventListener("click", () => setWhiteboardOpen(false));
 
   // Self-assign quiz generation
   const ownForm = document.getElementById("ownQuizForm");

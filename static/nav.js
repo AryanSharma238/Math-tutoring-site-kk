@@ -61,9 +61,6 @@
 
     await runScripts(scripts);
 
-    document.querySelectorAll(".wb-embed[data-workspace-id]").forEach((el) => {
-      if (el.offsetParent !== null && window.WB) WB.mount(el);
-    });
   }
 
   async function softNavigate(url, opts = {}) {

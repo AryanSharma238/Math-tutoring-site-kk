@@ -779,15 +779,11 @@ def register_routes(app):
         if not profile or not profile.setup_complete:
             return render_template("waiting.html", user=user)
 
-        from whiteboard_routes import ensure_workspace
-        ws = ensure_workspace(profile)
-
         return render_template(
             "student_dashboard.html", user=user, profile=profile,
             next_class=profile.next_class,
             assigned_quizzes=profile.assigned_quizzes,
             completed_quizzes=profile.completed_quizzes,
-            workspace_id=ws.id,
             active="dashboard",
             class_call_url=CLASS_CALL_PARTICIPANT_URL,
         )
@@ -801,14 +797,6 @@ def register_routes(app):
     def admin_assign_quiz():
         return redirect(url_for("dashboard"))
 
-    # ============ Whiteboard ============
-    # See whiteboard_routes.py for the full route set (workspace/page/element CRUD, image
-    # upload, sync polling) -- kept in its own module since it's a self-contained subsystem
-    # and app.py was already large. Imported lazily here (not at module top) to avoid a
-    # circular import, since it in turn imports login_required/admin_required/current_user
-    # back from this module.
-    from whiteboard_routes import register_whiteboard_routes
-    register_whiteboard_routes(app)
 
     # /quizzes and /my-quizzes used to be their own pages; assignments now live directly on
     # the dashboard as tabs, so both just redirect there for anyone with an old bookmark/link.
@@ -960,13 +948,10 @@ def register_routes(app):
         admin = current_user()
         students = User.query.filter_by(is_admin=False).order_by(User.created_at).all()
 
-        from whiteboard_routes import ensure_workspace
-        ws = ensure_workspace(student.profile)
-
         return render_template(
             "admin_student.html", user=admin, students=students, student=student,
             profile=student.profile, timezones=COMMON_TIMEZONES,
-            workspace_id=ws.id, class_call_url=CLASS_CALL_HOST_URL,
+            class_call_url=CLASS_CALL_HOST_URL,
         )
 
     @app.route("/admin/student/<int:user_id>/update", methods=["POST"])

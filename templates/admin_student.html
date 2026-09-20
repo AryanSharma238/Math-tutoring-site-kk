@@ -149,20 +149,11 @@
         </div>
       </section>
 
-      <section class="card admin-student-whiteboard-card">
-        <h3>Whiteboard</h3>
-        <div class="admin-student-whiteboard-wrap">
-          {% include "_whiteboard_editor.html" %}
-        </div>
-      </section>
 
     </div>
   </main>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="{{ url_for('static', filename='whiteboard.js') }}"></script>
 {% endblock %}
 {% block scripts %}
 <script>
@@ -173,10 +164,6 @@
       adminTabs.forEach((t) => t.classList.remove("active"));
       tab.classList.add("active");
       adminPanels.forEach((p) => { p.hidden = p.dataset.panel !== tab.dataset.tab; });
-      if (tab.dataset.tab === "workspace") {
-        const wbEl = document.querySelector('.admin-student-whiteboard-wrap .wb-embed');
-        if (wbEl) requestAnimationFrame(() => WB.mount(wbEl));
-      }
     });
   });
 
