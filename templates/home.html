@@ -2,7 +2,7 @@
 {% set ratios = [0.495,0.983,0.419,0.495,0.495,0.495,0.495,0.495,0.544,0.495,0.850,0.495,0.375,0.495,0.495,0.495,0.531,0.493,0.495,0.630,0.481,0.815,0.474,0.495,0.397,0.349,0.421,0.393,0.495] %}
 {% block title %}E Math Metrics · Math &amp; Physics Mentoring{% endblock %}
 {% block body %}
-<link rel="stylesheet" href="{{ url_for('static', filename='landing.css') }}?v=6">
+<link rel="stylesheet" href="{{ url_for('static', filename='landing.css') }}?v=7">
 <div class="lp">
 
 <header class="lp-header" id="lpHeader">
@@ -42,7 +42,7 @@
     <h1>Math and physics, taught the way they're meant to be <em>understood.</em></h1>
     <p class="hero-lead">I'm <strong>Karthikeya</strong>, a NIT Warangal alum and full-time math, AP and physics mentor. For five years I've helped students swap rote drills for real intuition, and watched their scores follow.</p>
     <div class="hero-ctas">
-      <a href="#book" data-scroll class="btn btn-primary">Book a free intro call <span class="arr">&rarr;</span></a>
+      <a href="{{ form_url }}" target="_blank" rel="noreferrer" class="btn btn-primary">Book a free intro call <span class="arr">&rarr;</span></a>
       <a href="#testimonials" class="btn btn-line" data-scroll>Read testimonials <span class="arr arr-down">&darr;</span></a>
     </div>
     <p class="hero-note">"I encourage students to rely on a creativity-based approach rather than rote learning."</p>
@@ -117,7 +117,7 @@
         <div class="price-amount">£17.5 to £20</div>
         <div class="price-unit">per 60-min class</div>
         <div class="price-inr">&asymp; &#8377;2,236 to &#8377;2,555</div>
-        <a href="#book" data-scroll class="btn btn-line">Book now</a>
+        <a href="{{ form_url }}" target="_blank" rel="noreferrer" class="btn btn-line">Book now</a>
       </div>
       <div class="price-card featured rv" style="--d:.12s">
         <span class="price-badge">Most booked</span>
@@ -126,7 +126,7 @@
         <div class="price-amount">$22.5 to $25</div>
         <div class="price-unit">USD per 60-min class</div>
         <div class="price-inr">&asymp; &#8377;2,144 to &#8377;2,383</div>
-        <a href="#book" data-scroll class="btn btn-primary">Book now</a>
+        <a href="{{ form_url }}" target="_blank" rel="noreferrer" class="btn btn-primary">Book now</a>
       </div>
       <div class="price-card rv" style="--d:.19s">
         <div class="price-region">USA</div>
@@ -134,7 +134,7 @@
         <div class="price-amount">$24.5 to $30.99</div>
         <div class="price-unit">per 60-min class</div>
         <div class="price-inr">&asymp; &#8377;2,335 to &#8377;2,953</div>
-        <a href="#book" data-scroll class="btn btn-line">Book now</a>
+        <a href="{{ form_url }}" target="_blank" rel="noreferrer" class="btn btn-line">Book now</a>
       </div>
     </div>
   </div>
@@ -169,7 +169,7 @@
       <a href="{{ url_for('login', mode='signup') }}" class="res-card rv" style="--d:.05s"><div class="res-icon">&#9638;</div><h3>Student portal</h3><p>Your course, curriculum, next class time and assignments, all in one calm dashboard.</p><span class="go">Create an account &rarr;</span></a>
       <a href="{{ url_for('login') }}" class="res-card rv" style="--d:.1s"><div class="res-icon">?</div><h3>Practice quizzes</h3><p>Generate instant multiple-choice practice on any topic, with step-by-step solutions.</p><span class="go">Sign in to practice &rarr;</span></a>
       <a href="#videos" class="res-card rv" style="--d:.15s" data-scroll><div class="res-icon">&#9654;</div><h3>Video lessons</h3><p>Watch real lessons on precalculus, motion and mechanics before you commit.</p><span class="go">Watch now &rarr;</span></a>
-      <a href="#book" data-scroll class="res-card rv" style="--d:.2s"><div class="res-icon">&#9742;</div><h3>Free intro call</h3><p>Tell us about your student and goals. We'll map out the right plan together.</p><span class="go">Book a call &rarr;</span></a>
+      <a href="{{ form_url }}" target="_blank" rel="noreferrer" class="res-card rv" style="--d:.2s"><div class="res-icon">&#9742;</div><h3>Free intro call</h3><p>Tell us about your student and goals. We'll map out the right plan together.</p><span class="go">Book a call &rarr;</span></a>
     </div>
   </div>
 </section>
@@ -188,15 +188,11 @@
         </ul>
       </div>
       <div class="form-card rv" style="--d:.15s">
-        {% if form_embed_url %}
-          <iframe class="form-embed" src="{{ form_embed_url }}" title="Free intro call request form" loading="lazy"></iframe>
-        {% else %}
-          <div class="form-fallback">
-            <h3>Request your free intro call</h3>
-            <p>It takes about a minute. We'll reply by email.</p>
-            <a href="{{ form_fallback_url }}" target="_blank" rel="noreferrer" class="btn btn-primary">Open the form <span class="arr">&rarr;</span></a>
-          </div>
-        {% endif %}
+        <div class="form-fallback">
+          <h3>Request your free intro call</h3>
+          <p>It takes about a minute. We'll reply by email.</p>
+          <a href="{{ form_url }}" target="_blank" rel="noreferrer" class="btn btn-primary">Open the form <span class="arr">&rarr;</span></a>
+        </div>
       </div>
     </div>
     <footer class="foot">
