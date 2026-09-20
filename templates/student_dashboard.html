@@ -30,8 +30,8 @@
 
       <section class="card questions-card">
         <h3>Questions answered</h3>
-        <div class="dashboard-counter dashboard-counter-standalone">
-          <strong>{{ profile.questions_answered }}</strong>
+        <div class="dashboard-counter dashboard-counter-standalone qa-counter-big">
+          <strong id="qacounter">{{ profile.questions_answered or 0 }}</strong>
         </div>
       </section>
       </div>
