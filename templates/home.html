@@ -1,9 +1,8 @@
 {% extends "base.html" %}
-{% set BOOK = "https://forms.gle/5dSMCAtVG1r7w4Vo8" %}
 {% set ratios = [0.495,0.983,0.419,0.495,0.495,0.495,0.495,0.495,0.544,0.495,0.850,0.495,0.375,0.495,0.495,0.495,0.531,0.493,0.495,0.630,0.481,0.815,0.474,0.495,0.397,0.349,0.421,0.393,0.495] %}
-{% block title %}E Math Metrics · Full-time Math, AP &amp; Physics Mentoring{% endblock %}
+{% block title %}E Math Metrics · Math &amp; Physics Mentoring{% endblock %}
 {% block body %}
-<link rel="stylesheet" href="{{ url_for('static', filename='landing.css') }}?v=4">
+<link rel="stylesheet" href="{{ url_for('static', filename='landing.css') }}?v=6">
 <div class="lp">
 
 <header class="lp-header" id="lpHeader">
@@ -38,28 +37,15 @@
 </header>
 
 <section id="top" class="lp-sec hero" data-section>
-  <div class="lp-wrap hero-grid">
-    <div class="hero-copy">
-      <div class="hero-tags">
-        <span class="tag live">Full-time mentor</span>
-        <span class="tag">Math</span>
-        <span class="tag">AP</span>
-        <span class="tag">Physics</span>
-      </div>
-      <h1>Math and physics, taught the way they're meant to be <em>understood.</em></h1>
-      <p class="hero-lead">I'm <strong>Karthikeya</strong>, a NIT Warangal alum and full-time math, AP and physics mentor. For five years I've helped students swap rote drills for real intuition, and watched their scores follow.</p>
-      <div class="hero-ctas">
-        <a href="{{ BOOK }}" target="_blank" rel="noreferrer" class="btn btn-primary">Book a free intro call <span class="arr">&rarr;</span></a>
-        <a href="#testimonials" class="btn btn-line" data-scroll>Read testimonials <span class="arr arr-down">&darr;</span></a>
-      </div>
-      <p class="hero-note">"I encourage students to rely on a creativity-based approach rather than rote learning."</p>
+  <div class="lp-wrap hero-center">
+    <div class="logo-stage"><img src="{{ url_for('static', filename='images/m2-logo.png') }}" alt="E Math Metrics logo"></div>
+    <h1>Math and physics, taught the way they're meant to be <em>understood.</em></h1>
+    <p class="hero-lead">I'm <strong>Karthikeya</strong>, a NIT Warangal alum and full-time math, AP and physics mentor. For five years I've helped students swap rote drills for real intuition, and watched their scores follow.</p>
+    <div class="hero-ctas">
+      <a href="#book" data-scroll class="btn btn-primary">Book a free intro call <span class="arr">&rarr;</span></a>
+      <a href="#testimonials" class="btn btn-line" data-scroll>Read testimonials <span class="arr arr-down">&darr;</span></a>
     </div>
-    <div class="hero-visual">
-      <div class="logo-stage"><img src="{{ url_for('static', filename='images/m2-logo.png') }}" alt="E Math Metrics logo"></div>
-      <div class="chip c1">AP Calculus<small>AB &amp; BC</small></div>
-      <div class="chip c2">Physics<small>Mechanics to E&amp;M</small></div>
-      <div class="chip c3">7+ countries<small>1-on-1 online</small></div>
-    </div>
+    <p class="hero-note">"I encourage students to rely on a creativity-based approach rather than rote learning."</p>
   </div>
 </section>
 
@@ -89,8 +75,8 @@
     <p class="eyebrow rv">Curricula</p>
     <h2 class="sec-title rv" style="--d:.05s">One philosophy: understand first, then practice.</h2>
     <div class="cur-grid">
-      <article class="cur-card hot rv" style="--d:.05s"><span class="tag">Full-time</span><h3>AP Math</h3><p>AP Precalculus, Calculus AB/BC and Statistics, taught for the exam and for real understanding.</p></article>
-      <article class="cur-card hot rv" style="--d:.1s"><span class="tag">Full-time</span><h3>Physics</h3><p>High school, AP and college physics, from mechanics and motion to the concepts that make the formulas click.</p></article>
+      <article class="cur-card hot rv" style="--d:.05s"><h3>AP Math</h3><p>AP Precalculus, Calculus AB/BC and Statistics, taught for the exam and for real understanding.</p></article>
+      <article class="cur-card hot rv" style="--d:.1s"><h3>Physics</h3><p>High school, AP and college physics, from mechanics and motion to the concepts that make the formulas click.</p></article>
       <article class="cur-card rv" style="--d:.15s"><span class="tag">USA</span><h3>US Common Core</h3><p>Geometry, Algebra I/II, Precalculus and Calculus, plus PSAT and SAT prep with personalized strategies.</p></article>
       <article class="cur-card rv" style="--d:.2s"><span class="tag">India</span><h3>IIT JEE</h3><p>Mains and Advanced coaching with deep conceptual mastery and time-tested problem-solving techniques.</p></article>
       <article class="cur-card rv" style="--d:.25s"><span class="tag">Canada</span><h3>Grades 9 to 12</h3><p>Full Canadian curriculum support including AP and IB programs, from foundations to exam day.</p></article>
@@ -131,7 +117,7 @@
         <div class="price-amount">£17.5 to £20</div>
         <div class="price-unit">per 60-min class</div>
         <div class="price-inr">&asymp; &#8377;2,236 to &#8377;2,555</div>
-        <a href="{{ BOOK }}" target="_blank" rel="noreferrer" class="btn btn-line">Book now</a>
+        <a href="#book" data-scroll class="btn btn-line">Book now</a>
       </div>
       <div class="price-card featured rv" style="--d:.12s">
         <span class="price-badge">Most booked</span>
@@ -140,7 +126,7 @@
         <div class="price-amount">$22.5 to $25</div>
         <div class="price-unit">USD per 60-min class</div>
         <div class="price-inr">&asymp; &#8377;2,144 to &#8377;2,383</div>
-        <a href="{{ BOOK }}" target="_blank" rel="noreferrer" class="btn btn-primary">Book now</a>
+        <a href="#book" data-scroll class="btn btn-primary">Book now</a>
       </div>
       <div class="price-card rv" style="--d:.19s">
         <div class="price-region">USA</div>
@@ -148,7 +134,7 @@
         <div class="price-amount">$24.5 to $30.99</div>
         <div class="price-unit">per 60-min class</div>
         <div class="price-inr">&asymp; &#8377;2,335 to &#8377;2,953</div>
-        <a href="{{ BOOK }}" target="_blank" rel="noreferrer" class="btn btn-line">Book now</a>
+        <a href="#book" data-scroll class="btn btn-line">Book now</a>
       </div>
     </div>
   </div>
@@ -157,7 +143,7 @@
 <section id="videos" class="lp-sec" data-section>
   <div class="lp-wrap">
     <p class="eyebrow rv">Videos</p>
-    <h2 class="sec-title rv" style="--d:.05s">See how he teaches.</h2>
+    <h2 class="sec-title rv" style="--d:.05s">See how I teach.</h2>
     <div class="vid-grid">
       <div class="vid-card rv" style="--d:.05s">
         <iframe src="https://www.youtube.com/embed/QlwCrU7fkjA" title="Mechanics, Vectors, Motion in 1D (Physics 201)" allowfullscreen loading="lazy"></iframe>
@@ -183,17 +169,35 @@
       <a href="{{ url_for('login', mode='signup') }}" class="res-card rv" style="--d:.05s"><div class="res-icon">&#9638;</div><h3>Student portal</h3><p>Your course, curriculum, next class time and assignments, all in one calm dashboard.</p><span class="go">Create an account &rarr;</span></a>
       <a href="{{ url_for('login') }}" class="res-card rv" style="--d:.1s"><div class="res-icon">?</div><h3>Practice quizzes</h3><p>Generate instant multiple-choice practice on any topic, with step-by-step solutions.</p><span class="go">Sign in to practice &rarr;</span></a>
       <a href="#videos" class="res-card rv" style="--d:.15s" data-scroll><div class="res-icon">&#9654;</div><h3>Video lessons</h3><p>Watch real lessons on precalculus, motion and mechanics before you commit.</p><span class="go">Watch now &rarr;</span></a>
-      <a href="{{ BOOK }}" target="_blank" rel="noreferrer" class="res-card rv" style="--d:.2s"><div class="res-icon">&#9742;</div><h3>Free intro call</h3><p>Tell us about your student and goals. We'll map out the right plan together.</p><span class="go">Book a call &rarr;</span></a>
+      <a href="#book" data-scroll class="res-card rv" style="--d:.2s"><div class="res-icon">&#9742;</div><h3>Free intro call</h3><p>Tell us about your student and goals. We'll map out the right plan together.</p><span class="go">Book a call &rarr;</span></a>
     </div>
   </div>
 </section>
 
 <section id="book" class="lp-sec book" data-section>
   <div class="lp-wrap" style="flex:1;display:flex;flex-direction:column">
-    <div class="book-center">
-      <h2 class="rv">Ready to see math <em>click?</em></h2>
-      <p class="sub rv" style="--d:.08s">The intro call is free. We'll talk about your student, their goals, and whether we're a fit. No hard sell.</p>
-      <a href="{{ BOOK }}" target="_blank" rel="noreferrer" class="btn btn-primary rv" style="--d:.16s">Book my free call <span class="arr">&rarr;</span></a>
+    <div class="book-grid">
+      <div class="book-intro">
+        <p class="eyebrow rv">Free intro call</p>
+        <h2 class="rv" style="--d:.06s">Ready to see math <em>click?</em></h2>
+        <p class="sub rv" style="--d:.12s">Tell us about your student and their goals. We'll email you to set up a free intro call. No hard sell.</p>
+        <ul class="book-points rv" style="--d:.18s">
+          <li>Free, with no obligation</li>
+          <li>We match the plan to your curriculum and goals</li>
+          <li>Your details go only to the tutoring team</li>
+        </ul>
+      </div>
+      <div class="form-card rv" style="--d:.15s">
+        {% if form_embed_url %}
+          <iframe class="form-embed" src="{{ form_embed_url }}" title="Free intro call request form" loading="lazy"></iframe>
+        {% else %}
+          <div class="form-fallback">
+            <h3>Request your free intro call</h3>
+            <p>It takes about a minute. We'll reply by email.</p>
+            <a href="{{ form_fallback_url }}" target="_blank" rel="noreferrer" class="btn btn-primary">Open the form <span class="arr">&rarr;</span></a>
+          </div>
+        {% endif %}
+      </div>
     </div>
     <footer class="foot">
       <a href="#top" class="lp-brand" data-scroll><img src="{{ url_for('static', filename='images/m2-logo.png') }}" alt=""><span>E Math Metrics</span></a>
@@ -297,8 +301,38 @@
   }, { threshold: 0.6 });
   root.querySelectorAll("[data-count]").forEach((el) => counters.observe(el));
 
+  // Testimonial rows: slow -> fast -> slow, on a smooth loop (rows are half a cycle apart, in opposite directions).
+  const rows = [...root.querySelectorAll(".marquee")].map((el, i) => ({ el, track: el.querySelector(".marquee-track"), dir: i % 2 ? 1 : -1, x: 0, k: 1, hover: false, offset: i * 0.5 }));
+  let mqVisible = false, mqRaf = null, last = 0, clock = 0;
+  const CYCLE = 18, SLOW = 16, FAST = 190;
+  const mqIO = new IntersectionObserver((en) => { mqVisible = en.some((e) => e.isIntersecting); if (mqVisible && !mqRaf && !reduce) { last = performance.now(); mqRaf = requestAnimationFrame(mqTick); } }, { rootMargin: "100px" });
+  rows.forEach((r) => {
+    mqIO.observe(r.el);
+    r.el.addEventListener("mouseenter", () => { r.hover = true; });
+    r.el.addEventListener("mouseleave", () => { r.hover = false; });
+  });
+  function mqTick(now) {
+    mqRaf = null;
+    if (!mqVisible) return;
+    const dt = Math.min(0.05, (now - last) / 1000); last = now; clock += dt;
+    rows.forEach((r) => {
+      const half = r.track.scrollWidth / 2;
+      if (!half) return;
+      const phase = (clock / CYCLE + r.offset) % 1;
+      const speed = SLOW + (FAST - SLOW) * (0.5 - 0.5 * Math.cos(phase * Math.PI * 2));
+      r.k += ((r.hover ? 0 : 1) - r.k) * Math.min(1, dt * 5);
+      r.x += r.dir * speed * r.k * dt;
+      if (r.dir < 0 && r.x <= -half) r.x += half;
+      if (r.dir > 0 && r.x >= 0) r.x -= half;
+      r.track.style.transform = "translate3d(" + r.x.toFixed(2) + "px,0,0)";
+    });
+    mqRaf = requestAnimationFrame(mqTick);
+  }
+  rows.forEach((r) => { if (r.dir > 0) r.x = -r.track.scrollWidth / 2; });
+
   window.__lpCleanup = () => {
     stop();
+    if (mqRaf) cancelAnimationFrame(mqRaf); mqVisible = false; mqIO.disconnect();
     window.removeEventListener("scroll", onScroll);
     ["wheel", "touchstart", "keydown"].forEach((ev) => window.removeEventListener(ev, stop));
     io.disconnect(); spy.disconnect(); counters.disconnect();

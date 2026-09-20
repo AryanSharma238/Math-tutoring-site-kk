@@ -24,6 +24,12 @@ from models import ClassScheduleSlot, CurriculumFile, HomeworkFile, Quiz, Studen
 
 GITHUB_REPO = "AryanSharma238/Math-tutoring-site-kk"
 
+# Third-party intake form shown on the homepage. Paste a form service's EMBED url into the
+# INTAKE_FORM_EMBED_URL env var (e.g. https://tally.so/embed/XXXXXX). Until then the homepage
+# shows a button that opens the fallback link below.
+INTAKE_FORM_EMBED_URL = os.environ.get("INTAKE_FORM_EMBED_URL", "").strip()
+INTAKE_FORM_FALLBACK_URL = "https://forms.gle/5dSMCAtVG1r7w4Vo8"
+
 # Video call: one fixed room shared by the admin and every student (the admin only ever runs
 # one class at a time, so everyone landing in the same room is exactly right -- no per-student
 # bookkeeping needed).
@@ -621,7 +627,9 @@ def current_user():
 def register_routes(app):
     @app.route("/")
     def home():
-        return render_template("home.html")
+        return render_template(
+            "home.html", form_embed_url=INTAKE_FORM_EMBED_URL, form_fallback_url=INTAKE_FORM_FALLBACK_URL,
+        )
 
     @app.route("/login")
     def login():
