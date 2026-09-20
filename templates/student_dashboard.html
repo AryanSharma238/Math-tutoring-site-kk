@@ -21,7 +21,8 @@
           <p class="muted small">{{ profile.course_name or "No course set" }}</p>
           {% if class_call_url %}
             <button type="button" class="join-class-btn" id="joinClassBtn"
-              data-url="{{ class_call_url }}" data-name="{{ user.name or user.email }}">
+              data-url="{{ class_call_url }}" data-name="{{ user.name or user.email }}"
+              onclick="window.open(this.dataset.url, 'class_call', 'width=1200,height=800'); return false;">
               Join Call
             </button>
           {% endif %}
