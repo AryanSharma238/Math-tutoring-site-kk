@@ -136,7 +136,7 @@
             <div class="quiz-list">
               {% for homework in profile.homework_files %}
                 <div class="quiz-row">
-                  <span class="quiz-row-title">{{ homework.title }}</span>
+                  <span class="quiz-row-title">{{ homework.title }}{% if homework.completed_at %} <span class="done-chip" style="padding:.15rem .6rem;font-size:.72rem">Submitted</span>{% endif %}</span>
                   <form method="POST" action="{{ url_for('admin_student_homework_delete', user_id=student.id, file_id=homework.id) }}" class="inline-form" onsubmit="return confirm('Remove this PDF homework?');">
                     <button type="submit" class="link-btn">remove</button>
                   </form>

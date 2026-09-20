@@ -7,7 +7,6 @@
   <main class="content content-wide">
     <div class="dash-head">
       <div>
-        <p class="dash-eyebrow">Welcome back</p>
         <h1>{{ ((user.name or user.email).split()[0])|title if user.name else user.email.split('@')[0] }}</h1>
       </div>
       {% if profile.course_name %}<span class="course-pill">{{ profile.course_name }}</span>{% endif %}
@@ -24,7 +23,6 @@
             Loading...
           </p>
           <p class="countdown" id="countdown"></p>
-          <p class="muted small">{{ profile.course_name or "No course set" }}</p>
           {% if class_call_url %}
             <button type="button" class="join-class-btn" id="joinClassBtn"
               data-url="{{ class_call_url }}" data-name="{{ user.name or user.email }}">
@@ -41,7 +39,6 @@
         <div class="dashboard-counter dashboard-counter-standalone qa-counter-big">
           <strong id="qacounter">{{ profile.questions_answered or 0 }}</strong>
         </div>
-        <p class="qa-caption">Every question you answer counts. Keep going.</p>
       </section>
       </div>
 
@@ -50,11 +47,10 @@
         {% if profile.latest_curriculum %}
           {% set f = profile.latest_curriculum %}
           {% if f.mimetype == 'application/pdf' %}
-            <embed src="{{ url_for('serve_curriculum', file_id=f.id) }}" type="application/pdf" class="curriculum-viewer">
+            <embed src="{{ url_for('serve_curriculum', file_id=f.id) }}#toolbar=0&navpanes=0&view=FitH" type="application/pdf" class="curriculum-viewer">
           {% else %}
             <img src="{{ url_for('serve_curriculum', file_id=f.id) }}" alt="{{ f.filename }}" class="curriculum-viewer">
           {% endif %}
-          <p class="muted small">{{ f.filename }}</p>
         {% else %}
           <p class="empty-note">Your teacher hasn't added a curriculum yet.</p>
         {% endif %}
@@ -71,7 +67,7 @@
 
       <div class="assignments-panel" data-panel="assigned">
         <div class="assignment-cover-list" id="assignedList">
-          {% if assigned_quizzes or profile.homework_files %}
+          {% if assigned_quizzes or profile.assigned_homework %}
             {% for q in assigned_quizzes %}
               <a href="{{ url_for('take_quiz', quiz_id=q.id) }}" class="assignment-cover" data-seed="{{ q.id }}">
                 <div class="assignment-cover-art"></div>
@@ -81,7 +77,7 @@
                 </div>
               </a>
             {% endfor %}
-            {% for homework in profile.homework_files %}
+            {% for homework in profile.assigned_homework %}
               <a href="{{ url_for('view_homework', file_id=homework.id) }}" class="assignment-cover homework-cover" data-seed="{{ homework.id + 9000 }}">
                 <div class="assignment-cover-art"></div>
                 <div class="assignment-cover-body">
@@ -98,9 +94,9 @@
 
       <div class="assignments-panel" data-panel="completed" hidden>
         <div class="completed-group">
-          {% if completed_quizzes %}
+          {% if completed_quizzes or profile.completed_homework %}
             <div class="completed-group-header">
-              <span class="muted small">{{ completed_quizzes|length }} completed</span>
+              <span class="muted small">{{ completed_quizzes|length + profile.completed_homework|length }} completed</span>
               <form method="POST" action="{{ url_for('clear_all_completed_quizzes') }}"
                 onsubmit="return confirm('Clear all completed assignments? They\'ll move back to Assigned.');">
                 <button type="submit" class="secondary-btn">Clear all completed</button>
@@ -113,6 +109,15 @@
                   <div class="assignment-cover-body">
                     <span class="assignment-cover-title">{{ q.title }}</span>
                     <span class="assignment-cover-count">{{ q.question_count }} question{{ 's' if q.question_count != 1 else '' }}</span>
+                  </div>
+                </a>
+              {% endfor %}
+              {% for homework in profile.completed_homework %}
+                <a href="{{ url_for('view_homework', file_id=homework.id) }}" class="assignment-cover homework-cover" data-seed="{{ homework.id + 9000 }}">
+                  <div class="assignment-cover-art"></div>
+                  <div class="assignment-cover-body">
+                    <span class="assignment-cover-title">{{ homework.title }}</span>
+                    <span class="assignment-cover-count">Submitted</span>
                   </div>
                 </a>
               {% endfor %}

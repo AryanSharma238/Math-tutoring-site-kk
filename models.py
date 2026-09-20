@@ -103,6 +103,14 @@ class StudentProfile(db.Model):
         )
 
     @property
+    def assigned_homework(self):
+        return [h for h in self.homework_files if not h.completed_at]
+
+    @property
+    def completed_homework(self):
+        return sorted((h for h in self.homework_files if h.completed_at), key=lambda h: h.completed_at, reverse=True)
+
+    @property
     def questions_answered(self):
         import json
         total = 0
@@ -147,6 +155,7 @@ class HomeworkFile(db.Model):
     mimetype = db.Column(db.String(100), nullable=False)
     data = db.Column(db.LargeBinary, nullable=False)
     uploaded_at = db.Column(db.DateTime, default=lambda: datetime.now(dt_timezone.utc))
+    completed_at = db.Column(db.DateTime, nullable=True)
 
 
 class ClassSession(db.Model):

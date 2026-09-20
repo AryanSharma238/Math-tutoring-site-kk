@@ -558,6 +558,7 @@ _PENDING_COLUMN_MIGRATIONS = [
     # The Canva slideshow feature is gone -- assignments/homework replaced it as the thing
     # students see on their dashboard.
     "DROP TABLE IF EXISTS site_embeds",
+    "ALTER TABLE homework_files ADD COLUMN completed_at TIMESTAMP",
 ]
 
 
@@ -1188,6 +1189,9 @@ def register_routes(app):
         user = current_user()
         if not user.is_admin and (not user.profile or user.profile.id != record.profile_id):
             abort(403)
+        if not user.is_admin and not record.completed_at:
+            record.completed_at = datetime.now(dt_timezone.utc)
+            db.session.commit()
         flash("Homework submitted.")
         return redirect(url_for("dashboard"))
 

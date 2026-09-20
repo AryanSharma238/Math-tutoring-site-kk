@@ -2,23 +2,30 @@
 {% block title %}{{ quiz.title }}{% endblock %}
 {% block body %}
 <div class="quiz-take-shell">
-  <div class="quiz-take-topbar">
-    <a href="{{ url_for('dashboard') }}" class="quiz-take-back" title="Exit quiz">&larr; Exit</a>
-    <h1 class="quiz-take-title">{{ quiz.title }}</h1>
-    <div class="quiz-nav-dots" id="quizNavDots"></div>
-  </div>
+  <header class="qt-top">
+    <a href="{{ url_for('dashboard') }}" class="qt-exit" title="Exit quiz" data-native>&larr; Exit</a>
+    <h1 class="qt-title">{{ quiz.title }}</h1>
+    <div class="qt-tools">
+      <button type="button" id="openCalcBtn" class="qt-tool" title="Calculator">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M8.5 7.5h7M9 12h.01M12 12h.01M15 12h.01M9 16h.01M12 16h.01M15 16h.01"/></svg>
+        <span>Calculator</span>
+      </button>
+      <button type="button" id="openDrawBtn" class="qt-tool" title="Draw on screen">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l4-1 11-11a2.1 2.1 0 00-3-3L5 16l-1 4z"/><path d="M14 7l3 3"/></svg>
+        <span>Draw</span>
+      </button>
+    </div>
+  </header>
+
+  <div class="qt-progress" id="quizNavDots" aria-label="Question progress"></div>
+  <p class="qt-count" id="qtCount"></p>
 
   <div class="quiz-take-body" id="quizContainer"></div>
 
-  <div class="quiz-take-controls">
-    <button type="button" id="prevBtn" class="secondary-btn">Previous</button>
-    <button type="button" id="nextBtn">Next</button>
-  </div>
-</div>
-
-<div class="quiz-tools-rail">
-  <button type="button" id="openCalcBtn" class="tool-fab" title="Calculator">Calculator</button>
-  <button type="button" id="openDrawBtn" class="tool-fab" title="Draw">Draw</button>
+  <footer class="qt-controls">
+    <button type="button" id="prevBtn" class="qt-prev">&larr; Previous</button>
+    <button type="button" id="nextBtn" class="qt-next">Next &rarr;</button>
+  </footer>
 </div>
 
 <div class="calc-window" id="calcWindow" hidden>
@@ -85,9 +92,10 @@
         const cls = ["quiz-nav-dot"];
         if (pi === currentIndex) cls.push("current");
         if (isCorrect(pi)) cls.push("done");
-        return `<button type="button" class="${cls.join(" ")}" data-goto="${pi}">${pi + 1}</button>`;
+        return `<button type="button" class="${cls.join(" ")}" data-goto="${pi}" title="Question ${pi + 1}" aria-label="Question ${pi + 1}"></button>`;
       })
       .join("");
+    document.getElementById("qtCount").textContent = `Question ${currentIndex + 1} of ${questions.length}`;
   }
 
   function renderQuestion() {
@@ -102,12 +110,12 @@
         if (locked) {
           if (c.correct) cls.push("correct");
         } else if (saved.choice === ci) {
-          cls.push("selected");
+          cls.push(saved.wrongAttempt ? "wrong" : "selected");
         }
         return `
           <button type="button" class="${cls.join(" ")}" data-choice="${ci}" ${locked ? "disabled" : ""}>
             <span class="choice-label">${escapeHtml(c.label || "")}</span>
-            ${escapeHtml(c.text || "")}
+            <span class="choice-text">${escapeHtml(c.text || "")}</span>
           </button>
         `;
       })
@@ -118,14 +126,14 @@
         <p class="quiz-question-text"><span class="num">${pi + 1}.</span> ${escapeHtml(p.question || "")}</p>
         ${p.graph ? `<div class="quiz-graph" id="graph-current"></div>` : ""}
         <div class="quiz-choices">${choicesHtml}</div>
-        <button type="button" class="submit-answer-btn" id="submitAnswerBtn" ${saved.choice === undefined || locked ? "disabled" : ""} ${locked ? "hidden" : ""}>
-          ${saved.wrongAttempt ? "Try again" : "Submit answer"}
+        <div class="qt-feedback ${locked ? "ok" : saved.wrongAttempt ? "bad" : ""}" id="feedback" role="status">
+          ${locked ? "Correct! Nicely done." : saved.wrongAttempt ? (p.choices[saved.choice] && p.choices[saved.choice].explanation) || "Not quite. Try another answer." : ""}
+        </div>
+        <button type="button" class="qt-submit submit-answer-btn" id="submitAnswerBtn" ${saved.choice === undefined || locked || saved.wrongAttempt ? "disabled" : ""} ${locked ? "hidden" : ""}>
+          ${saved.wrongAttempt ? "Choose another answer" : "Submit answer"}
         </button>
-        <p class="quiz-feedback ${locked ? "correct-text" : saved.wrongAttempt ? "incorrect-text" : ""}" id="feedback">
-          ${locked ? "Correct!" : saved.wrongAttempt ? (p.choices[saved.choice] && p.choices[saved.choice].explanation) || "Not quite -- try again." : ""}
-        </p>
-        <button type="button" class="steps-toggle" id="stepsToggle">Show step-by-step solution</button>
-        <div class="steps" id="stepsBox" hidden>${escapeHtml(p.solution || "")}</div>
+        <button type="button" class="qt-steps-toggle steps-toggle" id="stepsToggle">Show solution</button>
+        <div class="qt-steps steps" id="stepsBox" hidden>${escapeHtml(p.solution || "")}</div>
       </div>
     `;
 
@@ -133,7 +141,7 @@
     renderMathIn(container);
 
     prevBtn.disabled = pi === 0;
-    nextBtn.textContent = pi === questions.length - 1 ? "Finish" : "Next";
+    nextBtn.textContent = pi === questions.length - 1 ? "Finish" : "Next \u2192";
     renderNavDots();
   }
 
@@ -152,7 +160,7 @@
     if (stepsBtn) {
       const box = document.getElementById("stepsBox");
       box.hidden = !box.hidden;
-      stepsBtn.textContent = box.hidden ? "Show step-by-step solution" : "Hide step-by-step solution";
+      stepsBtn.textContent = box.hidden ? "Show solution" : "Hide solution";
       return;
     }
 
@@ -161,8 +169,11 @@
       const qEl = container.querySelector(".quiz-question");
       if (qEl.dataset.submitted === "true") return;
 
-      container.querySelectorAll(".choice-btn").forEach((b) => b.classList.remove("selected"));
+      container.querySelectorAll(".choice-btn").forEach((b) => b.classList.remove("selected", "wrong"));
       choiceBtn.classList.add("selected");
+      const fb = document.getElementById("feedback");
+      fb.className = "qt-feedback"; fb.textContent = "";
+      document.getElementById("submitAnswerBtn").textContent = "Submit answer";
       const submitBtn = document.getElementById("submitAnswerBtn");
       submitBtn.disabled = false;
       submitBtn.hidden = false;

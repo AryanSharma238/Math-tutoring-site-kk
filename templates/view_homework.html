@@ -3,23 +3,23 @@
 {% block body %}
 <div class="portal">
   {% include "_student_sidebar.html" %}
-  <main class="content content-wide">
-    <section class="card homework-view-card">
-      <div class="homework-view-head">
-        <div>
-          <p class="muted small">Homework PDF</p>
-          <h1>{{ homework.title }}</h1>
-          <p class="muted small">{{ homework.filename }}</p>
-        </div>
-        <div class="homework-view-actions">
-          <a href="{{ url_for('dashboard') }}" class="homework-exit-btn">Exit</a>
-          <form method="POST" action="{{ url_for('submit_homework', file_id=homework.id) }}">
-            <button type="submit" class="join-class-btn">Submit homework</button>
+  <main class="content content-wide hw-page">
+    <div class="hw-head">
+      <a href="{{ url_for('dashboard') }}" class="hw-back">&larr; Back</a>
+      <h1>{{ homework.title }}</h1>
+      <div class="hw-actions">
+        {% if homework.completed_at %}
+          <span class="done-chip">&#10003; Submitted</span>
+        {% elif not user.is_admin %}
+          <form method="POST" action="{{ url_for('submit_homework', file_id=homework.id) }}" data-native>
+            <button type="submit" class="pill-btn">Submit homework</button>
           </form>
-        </div>
+        {% endif %}
       </div>
-      <embed src="{{ url_for('serve_homework', file_id=homework.id) }}" type="{{ homework.mimetype }}" class="homework-pdf-viewer">
-    </section>
+    </div>
+    <div class="hw-viewer">
+      <embed src="{{ url_for('serve_homework', file_id=homework.id) }}#toolbar=0&navpanes=0&view=FitH" type="{{ homework.mimetype }}">
+    </div>
   </main>
 </div>
 {% endblock %}
