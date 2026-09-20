@@ -2,7 +2,7 @@
 {% set ratios = [0.495,0.983,0.419,0.495,0.495,0.495,0.495,0.495,0.544,0.495,0.850,0.495,0.375,0.495,0.495,0.495,0.531,0.493,0.495,0.630,0.481,0.815,0.474,0.495,0.397,0.349,0.421,0.393,0.495] %}
 {% block title %}E Math Metrics · Math &amp; Physics Mentoring{% endblock %}
 {% block body %}
-<link rel="stylesheet" href="{{ url_for('static', filename='landing.css') }}?v=7">
+<link rel="stylesheet" href="{{ url_for('static', filename='landing.css') }}?v=8">
 <div class="lp">
 
 <header class="lp-header" id="lpHeader">
@@ -75,8 +75,6 @@
     <p class="eyebrow rv">Curricula</p>
     <h2 class="sec-title rv" style="--d:.05s">One philosophy: understand first, then practice.</h2>
     <div class="cur-grid">
-      <article class="cur-card hot rv" style="--d:.05s"><h3>AP Math</h3><p>AP Precalculus, Calculus AB/BC and Statistics, taught for the exam and for real understanding.</p></article>
-      <article class="cur-card hot rv" style="--d:.1s"><h3>Physics</h3><p>High school, AP and college physics, from mechanics and motion to the concepts that make the formulas click.</p></article>
       <article class="cur-card rv" style="--d:.15s"><span class="tag">USA</span><h3>US Common Core</h3><p>Geometry, Algebra I/II, Precalculus and Calculus, plus PSAT and SAT prep with personalized strategies.</p></article>
       <article class="cur-card rv" style="--d:.2s"><span class="tag">India</span><h3>IIT JEE</h3><p>Mains and Advanced coaching with deep conceptual mastery and time-tested problem-solving techniques.</p></article>
       <article class="cur-card rv" style="--d:.25s"><span class="tag">Canada</span><h3>Grades 9 to 12</h3><p>Full Canadian curriculum support including AP and IB programs, from foundations to exam day.</p></article>
@@ -99,7 +97,7 @@
   <div class="marquee{{ ' rev' if loop.index == 2 else '' }}">
     <div class="marquee-track">
       {% for rep in [1, 2] %}{% for i in row %}
-        <div class="marquee-item" style="aspect-ratio: {{ ratios[i - 1] }}"><img src="{{ url_for('static', filename='images/testimonials/t' ~ i ~ '.jpg') }}" alt="Testimonial screenshot" width="{{ (ratios[i - 1] * 1000)|int }}" height="1000" loading="lazy" decoding="async"></div>
+        <button type="button" class="marquee-item" style="aspect-ratio: {{ ratios[i - 1] }}" aria-label="Enlarge testimonial"><img src="{{ url_for('static', filename='images/testimonials/t' ~ i ~ '.jpg') }}" alt="Testimonial screenshot" width="{{ (ratios[i - 1] * 1000)|int }}" height="1000" loading="lazy" decoding="async"></button>
       {% endfor %}{% endfor %}
     </div>
   </div>
@@ -207,6 +205,13 @@
   </div>
 </section>
 
+<div class="lightbox" id="lightbox" hidden aria-modal="true" role="dialog" aria-label="Testimonial">
+  <button type="button" class="lb-close" aria-label="Close">&times;</button>
+  <button type="button" class="lb-nav lb-prev" aria-label="Previous">&#8249;</button>
+  <img id="lbImg" alt="Testimonial screenshot">
+  <button type="button" class="lb-nav lb-next" aria-label="Next">&#8250;</button>
+</div>
+
 </div>
 {% endblock %}
 {% block scripts %}
@@ -223,16 +228,16 @@
   const burger = document.getElementById("lpBurger");
   let raf = null;
 
-  // Fast start, long gentle landing (ease-out quint); longer trips get more time, capped at 1.7s.
+  // Fast start, long gentle landing (ease-out quint); longer trips get more time, capped at 2.8s.
   function scrollToY(y) {
     if (raf) cancelAnimationFrame(raf);
     const start = window.scrollY, dist = y - start;
     if (reduce || Math.abs(dist) < 2) { window.scrollTo(0, y); return; }
-    const dur = Math.min(1700, Math.max(650, Math.abs(dist) * 0.45));
+    const dur = Math.min(2800, Math.max(1100, Math.abs(dist) * 0.8));
     const t0 = performance.now();
     const step = (now) => {
       const t = Math.min(1, (now - t0) / dur);
-      window.scrollTo(0, start + dist * (1 - Math.pow(1 - t, 5)));
+      window.scrollTo(0, start + dist * (1 - Math.pow(1 - t, 4)));
       raf = t < 1 ? requestAnimationFrame(step) : null;
     };
     raf = requestAnimationFrame(step);
@@ -300,7 +305,7 @@
   // Testimonial rows: slow -> fast -> slow, on a smooth loop (rows are half a cycle apart, in opposite directions).
   const rows = [...root.querySelectorAll(".marquee")].map((el, i) => ({ el, track: el.querySelector(".marquee-track"), dir: i % 2 ? 1 : -1, x: 0, k: 1, hover: false, offset: i * 0.5 }));
   let mqVisible = false, mqRaf = null, last = 0, clock = 0;
-  const CYCLE = 18, SLOW = 16, FAST = 190;
+  const CYCLE = 24, SLOW = 10, FAST = 120;
   const mqIO = new IntersectionObserver((en) => { mqVisible = en.some((e) => e.isIntersecting); if (mqVisible && !mqRaf && !reduce) { last = performance.now(); mqRaf = requestAnimationFrame(mqTick); } }, { rootMargin: "100px" });
   rows.forEach((r) => {
     mqIO.observe(r.el);
@@ -309,7 +314,7 @@
   });
   function mqTick(now) {
     mqRaf = null;
-    if (!mqVisible) return;
+    if (!mqVisible || !lb.hidden) { mqRaf = null; if (mqVisible) setTimeout(() => { if (!mqRaf && !reduce) { last = performance.now(); mqRaf = requestAnimationFrame(mqTick); } }, 250); return; }
     const dt = Math.min(0.05, (now - last) / 1000); last = now; clock += dt;
     rows.forEach((r) => {
       const half = r.track.scrollWidth / 2;
@@ -326,8 +331,23 @@
   }
   rows.forEach((r) => { if (r.dir > 0) r.x = -r.track.scrollWidth / 2; });
 
+  // Click a testimonial to enlarge it; arrows / keys browse, Esc or a click outside closes.
+  const lb = document.getElementById("lightbox"), lbImg = document.getElementById("lbImg");
+  const shots = [...root.querySelectorAll(".marquee")].flatMap((m) => [...m.querySelectorAll(".marquee-item img")].slice(0, m.querySelectorAll(".marquee-item").length / 2)).map((i) => i.src);
+  let lbIdx = 0;
+  const lbShow = (i) => { lbIdx = (i + shots.length) % shots.length; lbImg.src = shots[lbIdx]; };
+  const lbOpen = (i) => { lbShow(i); lb.hidden = false; requestAnimationFrame(() => lb.classList.add("open")); document.body.style.overflow = "hidden"; };
+  const lbClose = () => { lb.classList.remove("open"); document.body.style.overflow = ""; setTimeout(() => { if (!lb.classList.contains("open")) lb.hidden = true; }, 300); };
+  root.querySelectorAll(".marquee-item").forEach((b) => b.addEventListener("click", () => { const i = shots.indexOf(b.querySelector("img").src); lbOpen(i < 0 ? 0 : i); }));
+  lb.addEventListener("click", (e) => { if (e.target === lb || e.target.closest(".lb-close")) lbClose(); });
+  lb.querySelector(".lb-prev").addEventListener("click", () => lbShow(lbIdx - 1));
+  lb.querySelector(".lb-next").addEventListener("click", () => lbShow(lbIdx + 1));
+  const lbKey = (e) => { if (lb.hidden) return; if (e.key === "Escape") lbClose(); else if (e.key === "ArrowLeft") lbShow(lbIdx - 1); else if (e.key === "ArrowRight") lbShow(lbIdx + 1); };
+  window.addEventListener("keydown", lbKey);
+
   window.__lpCleanup = () => {
     stop();
+    window.removeEventListener("keydown", lbKey); document.body.style.overflow = "";
     if (mqRaf) cancelAnimationFrame(mqRaf); mqVisible = false; mqIO.disconnect();
     window.removeEventListener("scroll", onScroll);
     ["wheel", "touchstart", "keydown"].forEach((ev) => window.removeEventListener(ev, stop));
